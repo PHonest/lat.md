@@ -11,6 +11,7 @@ import {
 } from '../src/lattice.js';
 import { formatSectionPreview } from '../src/format.js';
 import { checkMd, checkCodeRefs } from '../src/cli/check.js';
+import { scanCodeRefs } from '../src/code-refs.js';
 
 // eslint-disable-next-line no-control-regex
 const stripAnsi = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, '');
@@ -210,6 +211,29 @@ describe('dangling-code-ref', () => {
     const dangling = errors.filter((e) => e.target === 'Alpha#Nonexistent');
     expect(dangling).toHaveLength(1);
     expect(dangling[0].message).toContain('no matching section found');
+  });
+});
+
+// --- python-code-ref ---
+
+describe('python-code-ref', () => {
+  it('scans @lat refs from Python # comments', async () => {
+    const refs = await scanCodeRefs(caseDir('python-code-ref'));
+    expect(refs).toHaveLength(2);
+
+    expect(refs[0].target).toBe('Specs#Feature A');
+    expect(refs[0].file).toContain('app.py');
+    expect(refs[0].line).toBe(1);
+
+    expect(refs[1].target).toBe('Specs#Nonexistent');
+    expect(refs[1].line).toBe(5);
+  });
+
+  it('detects dangling @lat ref in Python file', async () => {
+    const errors = await checkCodeRefs(latDir('python-code-ref'));
+    expect(errors).toHaveLength(1);
+    expect(errors[0].target).toBe('Specs#Nonexistent');
+    expect(errors[0].message).toContain('no matching section found');
   });
 });
 

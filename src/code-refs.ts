@@ -31,8 +31,20 @@ export async function walkFiles(dir: string): Promise<string[]> {
   return files;
 }
 
-// Only match @lat: in line comments (// or #)
-export const LAT_REF_RE = /\/\/\s*@lat:\s*\[\[([^\]]+)\]\]/g;
+/** Build a RegExp from a verbose template — whitespace is insignificant. */
+function re(flags: string) {
+  return (strings: TemplateStringsArray) =>
+    new RegExp(strings.raw[0].replace(/\s+/g, ''), flags);
+}
+
+// Line comment (// or #), then @lat: marker, then [[target]]
+export const LAT_REF_RE = re('gv')`
+  (?: // | # )
+  \s* @lat: \s*
+  \[\[
+    ( [^\]]+ )
+  \]\]
+`;
 
 export type CodeRef = {
   target: string;
