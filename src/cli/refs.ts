@@ -24,7 +24,7 @@ export async function refsCmd(
   const matches = findSections(allSections, query);
 
   if (matches.length === 0) {
-    console.error(ctx.chalk.red(`No section matching "${query}"`));
+    console.error(ctx.chalk.red(`No section matching "${query}" (no exact, substring, or fuzzy matches)`));
     process.exit(1);
   }
 

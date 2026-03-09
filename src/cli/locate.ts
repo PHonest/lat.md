@@ -10,7 +10,7 @@ export async function locateCmd(
   const matches = findSections(sections, query);
 
   if (matches.length === 0) {
-    console.error(ctx.chalk.red(`No sections matching "${query}"`));
+    console.error(ctx.chalk.red(`No sections matching "${query}" (no exact, substring, or fuzzy matches)`));
     process.exit(1);
   }
 

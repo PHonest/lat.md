@@ -48,6 +48,22 @@ Two validations:
 1. Every `// @lat: [[...]]` comment in source code must point to a real section in `.lat/`
 2. For files with [[markdown#Frontmatter#require-code-mention]], every leaf section must be referenced by at least one `// @lat:` comment in the codebase
 
+## prompt
+
+Expand `[[refs]]` in a prompt text to resolved `.lat` section paths with location context. Designed for coding agents to pipe user prompts through before processing.
+
+Usage: `lat prompt <text>` or `echo "text" | lat prompt`
+
+For each `[[ref]]` in the input:
+1. **Exact match** — resolves directly
+2. **Single fuzzy/subsection match** — resolves automatically
+3. **Multiple matches** — errors out listing candidates, tells the agent to ask the user to clarify
+4. **No match** — errors out, tells the agent to ask the user to correct the reference
+
+Output replaces `[[ref]]` with `[[resolved-id]]` inline and appends a `<lat-context>` block with section locations and body text.
+
+Implementation: `src/cli/prompt.ts`
+
 ## Section Preview
 
 Shared output format used by [[cli#locate]] and [[cli#refs]]. Shows the section id, file path with line range, and the first paragraph of body text.

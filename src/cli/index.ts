@@ -83,4 +83,26 @@ check
     await checkCodeRefsCmd(ctx);
   });
 
+program
+  .command('prompt')
+  .description('Expand [[refs]] in a prompt to .lat section locations')
+  .argument('[text]', 'prompt text')
+  .option('--stdin', 'read prompt from stdin')
+  .action(async (text: string | undefined, opts: { stdin?: boolean }) => {
+    if (opts.stdin) {
+      const chunks: Buffer[] = [];
+      for await (const chunk of process.stdin) {
+        chunks.push(chunk);
+      }
+      text = Buffer.concat(chunks).toString('utf-8');
+    }
+    if (!text) {
+      console.error('Provide prompt text as an argument or use --stdin');
+      process.exit(1);
+    }
+    const ctx = resolveContext(program.opts());
+    const { promptCmd } = await import('./prompt.js');
+    await promptCmd(ctx, text);
+  });
+
 await program.parseAsync();

@@ -24,6 +24,8 @@ When you add new functionality, commands, or change how the project is structure
 
 Run `lat locate "<section>"` to find a section by id. Run `lat refs "<section>"` to find what references it. Use these to understand how concepts connect before making changes.
 
+When processing user prompts that contain `[[refs]]`, pipe them through `lat prompt` first to resolve references to `.lat` section locations.
+
 ## Code Conventions
 
 See `.lat/dev-process.md` for the full list. Key points:
