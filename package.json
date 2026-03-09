@@ -1,11 +1,14 @@
 {
-  "name": "lattice",
+  "name": "lat.md",
   "version": "0.1.0",
   "description": "Anchor source code to high-level concepts defined in markdown",
   "type": "module",
   "bin": {
     "lat": "./dist/src/cli/index.js"
   },
+  "files": [
+    "dist/src"
+  ],
   "scripts": {
     "build": "tsc",
     "test": "vitest run",
