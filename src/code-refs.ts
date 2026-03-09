@@ -1,4 +1,4 @@
-import { readFile, readdir } from 'node:fs/promises';
+import { readFile, readdir, access } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 
 const IGNORE_DIRS = new Set([
@@ -16,6 +16,13 @@ export async function walkFiles(dir: string): Promise<string[]> {
     if (IGNORE_DIRS.has(entry.name)) continue;
     const full = join(dir, entry.name);
     if (entry.isDirectory()) {
+      // Skip sub-projects that have their own .lat directory
+      try {
+        await access(join(full, '.lat'));
+        continue;
+      } catch {
+        // no .lat — descend normally
+      }
       files.push(...(await walkFiles(full)));
     } else if (entry.isFile() && !entry.name.endsWith('.md')) {
       files.push(full);

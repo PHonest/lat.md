@@ -14,7 +14,7 @@ Current files:
 
 ## Maintaining `.lat`
 
-When you add new functionality or commands:
+When you add new functionality, commands, or change how the project is structured (e.g. test strategy, build pipeline, directory layout):
 1. Update the relevant `.lat/*.md` file, or create a new one if no existing file fits
 2. Cross-link between files using Obsidian wiki link syntax: `[[Page#Section]]`
 3. Keep descriptions high-level — what things do and why, not implementation minutiae
