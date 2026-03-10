@@ -176,8 +176,9 @@ describe('basic-project', () => {
 
   // @lat: [[tests#Check MD#Passes with valid links]]
   it('check md passes with valid links', async () => {
-    const errors = await checkMd(lat);
+    const { errors, files } = await checkMd(lat);
     expect(errors).toHaveLength(0);
+    expect(files).toEqual({ '.md': 2 });
   });
 });
 
@@ -186,7 +187,7 @@ describe('basic-project', () => {
 describe('broken-links', () => {
   // @lat: [[tests#Check MD#Detects broken links]]
   it('check md detects broken wiki links', async () => {
-    const errors = await checkMd(latDir('broken-links'));
+    const { errors } = await checkMd(latDir('broken-links'));
     expect(errors).toHaveLength(1);
     expect(errors[0].target).toBe('Nonexistent#Thing');
     expect(errors[0].line).toBe(3);
@@ -197,7 +198,7 @@ describe('broken-links', () => {
 
 describe('valid-links', () => {
   it('check md passes when all links resolve', async () => {
-    const errors = await checkMd(latDir('valid-links'));
+    const { errors } = await checkMd(latDir('valid-links'));
     expect(errors).toHaveLength(0);
   });
 });
@@ -207,10 +208,11 @@ describe('valid-links', () => {
 describe('dangling-code-ref', () => {
   // @lat: [[tests#Check Code Refs#Detects dangling code ref]]
   it('check code-refs detects @lat pointing to nonexistent section', async () => {
-    const errors = await checkCodeRefs(latDir('dangling-code-ref'));
+    const { errors, files } = await checkCodeRefs(latDir('dangling-code-ref'));
     const dangling = errors.filter((e) => e.target === 'Alpha#Nonexistent');
     expect(dangling).toHaveLength(1);
     expect(dangling[0].message).toContain('no matching section found');
+    expect(files).toEqual({ '.ts': 1 });
   });
 });
 
@@ -218,7 +220,7 @@ describe('dangling-code-ref', () => {
 
 describe('python-code-ref', () => {
   it('scans @lat refs from Python # comments', async () => {
-    const refs = await scanCodeRefs(caseDir('python-code-ref'));
+    const { refs } = await scanCodeRefs(caseDir('python-code-ref'));
     expect(refs).toHaveLength(2);
 
     expect(refs[0].target).toBe('Specs#Feature A');
@@ -230,10 +232,29 @@ describe('python-code-ref', () => {
   });
 
   it('detects dangling @lat ref in Python file', async () => {
-    const errors = await checkCodeRefs(latDir('python-code-ref'));
+    const { errors, files } = await checkCodeRefs(latDir('python-code-ref'));
     expect(errors).toHaveLength(1);
     expect(errors[0].target).toBe('Specs#Nonexistent');
     expect(errors[0].message).toContain('no matching section found');
+    expect(files).toEqual({ '.py': 1 });
+  });
+});
+
+// --- gitignore-filtering ---
+
+describe('gitignore-filtering', () => {
+  it('skips .gitignore-d dirs and .git/', async () => {
+    const { refs, files } = await scanCodeRefs(caseDir('gitignore-filtering'));
+    // build/ and vendor/ are gitignored; .git/ is always excluded
+    expect(refs).toHaveLength(1);
+    expect(refs[0].file).toContain('src/app.ts');
+    expect(files).toHaveLength(2); // .gitignore + src/app.ts
+    expect(files.every((f) => !f.includes('.git/'))).toBe(true);
+  });
+
+  it('reports no errors when gitignored refs are excluded', async () => {
+    const { errors } = await checkCodeRefs(latDir('gitignore-filtering'));
+    expect(errors).toHaveLength(0);
   });
 });
 
@@ -242,7 +263,7 @@ describe('python-code-ref', () => {
 describe('require-code-mention', () => {
   // @lat: [[tests#Check Code Refs#Detects missing code mention for required file]]
   it('check code-refs detects uncovered leaf sections', async () => {
-    const errors = await checkCodeRefs(latDir('require-code-mention'));
+    const { errors } = await checkCodeRefs(latDir('require-code-mention'));
     const uncovered = errors.filter((e) =>
       e.message.includes('requires a code mention'),
     );

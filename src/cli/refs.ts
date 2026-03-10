@@ -74,7 +74,7 @@ export async function refsCmd(
 
   if (scope === 'code' || scope === 'md+code') {
     const projectRoot = join(ctx.latDir, '..');
-    const codeRefs = await scanCodeRefs(projectRoot);
+    const { refs: codeRefs } = await scanCodeRefs(projectRoot);
     for (const ref of codeRefs) {
       if (ref.target.toLowerCase() === targetId) {
         if (hasOutput) console.log('');

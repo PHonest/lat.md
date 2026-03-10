@@ -1,34 +1,32 @@
-import { readFile, readdir, access } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { join, relative } from 'node:path';
+// @ts-expect-error -- no type declarations
+import walk from 'ignore-walk';
 
-const IGNORE_DIRS = new Set([
-  'node_modules',
-  'dist',
-  '.git',
-  'lat.md',
-  '.claude',
-]);
-
+/** Walk project files respecting .gitignore. Skips lat.md/, .claude/, and sub-projects. */
 export async function walkFiles(dir: string): Promise<string[]> {
-  const entries = await readdir(dir, { withFileTypes: true });
-  const files: string[] = [];
-  for (const entry of entries) {
-    if (IGNORE_DIRS.has(entry.name)) continue;
-    const full = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      // Skip sub-projects that have their own .lat directory
-      try {
-        await access(join(full, 'lat.md'));
-        continue;
-      } catch {
-        // no .lat — descend normally
-      }
-      files.push(...(await walkFiles(full)));
-    } else if (entry.isFile() && !entry.name.endsWith('.md')) {
-      files.push(full);
-    }
+  const entries: string[] = await walk({
+    path: dir,
+    ignoreFiles: ['.gitignore'],
+  });
+
+  // Collect directories that contain their own lat.md/ (sub-projects)
+  const subProjects = new Set<string>();
+  for (const e of entries) {
+    const i = e.indexOf('/lat.md/');
+    if (i !== -1) subProjects.add(e.slice(0, i + 1));
   }
-  return files;
+
+  return entries
+    .filter(
+      (e) =>
+        !e.endsWith('.md') &&
+        !e.startsWith('.git/') &&
+        !e.startsWith('lat.md/') &&
+        !e.startsWith('.claude/') &&
+        ![...subProjects].some((prefix) => e.startsWith(prefix)),
+    )
+    .map((e) => join(dir, e));
 }
 
 /** Build a RegExp from a verbose template — whitespace is insignificant. */
@@ -52,7 +50,14 @@ export type CodeRef = {
   line: number;
 };
 
-export async function scanCodeRefs(projectRoot: string): Promise<CodeRef[]> {
+export type ScanResult = {
+  refs: CodeRef[];
+  files: string[];
+};
+
+export async function scanCodeRefs(
+  projectRoot: string,
+): Promise<ScanResult> {
   const files = await walkFiles(projectRoot);
   const refs: CodeRef[] = [];
 
@@ -77,5 +82,5 @@ export async function scanCodeRefs(projectRoot: string): Promise<CodeRef[]> {
     }
   }
 
-  return refs;
+  return { refs, files };
 }

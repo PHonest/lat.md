@@ -27,6 +27,10 @@ Tests use a fixture-based approach. `tests/cases/` contains directories that eac
 
 Every test run includes a full `tsc --noEmit` pass over the entire codebase. If it doesn't typecheck, it doesn't pass.
 
+## File Walking
+
+`walkFiles` uses the `ignore-walk` npm package configured with `.gitignore` to scan for `@lat:` code references. Generated, vendored, and build files that are gitignored won't produce spurious code refs. The `.git/`, `lat.md/`, and `.claude/` directories are additionally filtered out.
+
 ## Formatting
 
 Prettier with no semicolons, single quotes, trailing commas. Run `pnpm format` before committing.

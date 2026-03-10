@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { join, relative } from 'node:path';
+import { extname, join, relative } from 'node:path';
 import {
   listLatticeFiles,
   loadAllSections,
@@ -19,7 +19,24 @@ export type CheckError = {
   message: string;
 };
 
-export async function checkMd(latticeDir: string): Promise<CheckError[]> {
+/** File counts grouped by extension (e.g. { ".ts": 5, ".py": 2 }). */
+export type FileStats = Record<string, number>;
+
+export type CheckResult = {
+  errors: CheckError[];
+  files: FileStats;
+};
+
+function countByExt(paths: string[]): FileStats {
+  const stats: FileStats = {};
+  for (const p of paths) {
+    const ext = extname(p) || '(no ext)';
+    stats[ext] = (stats[ext] || 0) + 1;
+  }
+  return stats;
+}
+
+export async function checkMd(latticeDir: string): Promise<CheckResult> {
   const files = await listLatticeFiles(latticeDir);
   const allSections = await loadAllSections(latticeDir);
   const flat = flattenSections(allSections);
@@ -45,22 +62,22 @@ export async function checkMd(latticeDir: string): Promise<CheckError[]> {
     }
   }
 
-  return errors;
+  return { errors, files: countByExt(files) };
 }
 
 export async function checkCodeRefs(
   latticeDir: string,
-): Promise<CheckError[]> {
+): Promise<CheckResult> {
   const projectRoot = join(latticeDir, '..');
   const allSections = await loadAllSections(latticeDir);
   const flat = flattenSections(allSections);
   const sectionIds = new Set(flat.map((s) => s.id.toLowerCase()));
 
-  const codeRefs = await scanCodeRefs(projectRoot);
+  const scan = await scanCodeRefs(projectRoot);
   const errors: CheckError[] = [];
 
   const mentionedSections = new Set<string>();
-  for (const ref of codeRefs) {
+  for (const ref of scan.refs) {
     const target = ref.target.toLowerCase();
     mentionedSections.add(target);
     if (!sectionIds.has(target)) {
@@ -96,7 +113,7 @@ export async function checkCodeRefs(
     }
   }
 
-  return errors;
+  return { errors, files: countByExt(scan.files) };
 }
 
 function formatErrors(ctx: CliContext, errors: CheckError[]): void {
@@ -114,25 +131,40 @@ function formatErrors(ctx: CliContext, errors: CheckError[]): void {
   }
 }
 
+function formatStats(ctx: CliContext, stats: FileStats): void {
+  const entries = Object.entries(stats).sort(([a], [b]) =>
+    a.localeCompare(b),
+  );
+  const parts = entries.map(([ext, n]) => `${n} ${ext}`);
+  console.log(ctx.chalk.dim(`Scanned ${parts.join(', ')}`));
+}
+
 export async function checkMdCmd(ctx: CliContext): Promise<void> {
-  const errors = await checkMd(ctx.latDir);
+  const { errors, files } = await checkMd(ctx.latDir);
+  formatStats(ctx, files);
   formatErrors(ctx, errors);
   if (errors.length > 0) process.exit(1);
   console.log(ctx.chalk.green('md: All links OK'));
 }
 
 export async function checkCodeRefsCmd(ctx: CliContext): Promise<void> {
-  const errors = await checkCodeRefs(ctx.latDir);
+  const { errors, files } = await checkCodeRefs(ctx.latDir);
+  formatStats(ctx, files);
   formatErrors(ctx, errors);
   if (errors.length > 0) process.exit(1);
   console.log(ctx.chalk.green('code-refs: All references OK'));
 }
 
 export async function checkAllCmd(ctx: CliContext): Promise<void> {
-  const mdErrors = await checkMd(ctx.latDir);
-  const codeErrors = await checkCodeRefs(ctx.latDir);
-  const allErrors = [...mdErrors, ...codeErrors];
+  const md = await checkMd(ctx.latDir);
+  const code = await checkCodeRefs(ctx.latDir);
+  const allErrors = [...md.errors, ...code.errors];
+  const allFiles: FileStats = { ...md.files };
+  for (const [ext, n] of Object.entries(code.files)) {
+    allFiles[ext] = (allFiles[ext] || 0) + n;
+  }
 
+  formatStats(ctx, allFiles);
   formatErrors(ctx, allErrors);
   if (allErrors.length > 0) process.exit(1);
   console.log(ctx.chalk.green('All checks passed'));

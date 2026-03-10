@@ -33,3 +33,11 @@ See `lat.md/dev-process.md` for the full list. Key points:
 - pnpm only
 - `pnpm test` must pass (includes typecheck)
 - Prettier: no semicolons, single quotes, trailing commas
+
+## Verification
+
+After making changes, always run:
+1. `pnpm test` — all tests must pass (includes typecheck)
+2. `pnpm build && node dist/src/cli/index.js check` — validates all `@lat:` code refs resolve and all wiki links in `lat.md/` are valid
+
+Both must pass before considering work complete.
