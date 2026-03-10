@@ -64,13 +64,29 @@ Output replaces `[[ref]]` with `[[resolved-id]]` inline and appends a `<lat-cont
 
 Implementation: `src/cli/prompt.ts`
 
+## gen
+
+Generate a file to stdout from a built-in template.
+
+Usage: `lat gen <target>`
+
+Supported targets:
+- `agents.md` — generate an `AGENTS.md` with instructions for coding agents on how to use `lat.md` in the project
+- `claude.md` — alias for `agents.md`
+
+Both targets output the same template from `templates/AGENTS.md`. The output is written to stdout so it can be redirected: `lat gen agents.md > AGENTS.md`.
+
+Implementation: `src/cli/gen.ts`
+
 ## init
 
-Initialize a `lat.md/` directory in the target directory (default: cwd). If one already exists, does nothing.
-
-Creates scaffolding from `templates/init/`: a `.gitignore` (ignoring `.obsidian` and `.cache`) and a `README.md` linking to the npm package.
+Interactive setup wizard. Walks the user through initializing lat.md in a project.
 
 Usage: `lat init [dir]`
+
+Steps:
+1. **lat.md/ directory** — if not present, asks whether to create it. Scaffolds from `templates/init/` (`.gitignore` and `README.md`). If it already exists, skips ahead.
+2. **AGENTS.md / CLAUDE.md** — if neither file exists, offers to generate both from the built-in template (same as [[cli#gen]]). If one or both already exist, suggests running `lat gen agents.md` to preview the template and incorporate manually.
 
 Implementation: `src/cli/init.ts`
 

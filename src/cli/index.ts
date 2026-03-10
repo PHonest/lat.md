@@ -126,6 +126,15 @@ program
   );
 
 program
+  .command('gen')
+  .description('Generate a file to stdout (agents.md, claude.md)')
+  .argument('<target>', 'file to generate: agents.md or claude.md')
+  .action(async (target: string) => {
+    const { genCmd } = await import('./gen.js');
+    await genCmd(target);
+  });
+
+program
   .command('init')
   .description('Initialize a lat.md directory')
   .argument('[dir]', 'target directory (default: cwd)')
