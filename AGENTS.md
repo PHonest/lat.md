@@ -16,17 +16,16 @@ Current files:
 
 When you add new functionality, commands, or change how the project is structured (e.g. test strategy, build pipeline, directory layout):
 1. Update the relevant `lat.md/*.md` file, or create a new one if no existing file fits
-2. Cross-link between files using Obsidian wiki link syntax: `[[Page#Section]]`
+2. Cross-link between files using wiki links: `[[file-stem#Heading#SubHeading]]` (e.g. `[[cli#search#Indexing]]`). The file stem is the markdown filename without `.md`.
 3. Keep descriptions high-level — what things do and why, not implementation minutiae
 4. **Always run `lat check` after updating `lat.md/` files** — all wiki links must resolve to existing sections. Do not leave broken links.
 
 ## Using `lat`
 
-Run `lat locate "<section>"` to find a section by id. Run `lat refs "<section>"` to find what references it. Use these to understand how concepts connect before making changes.
-
-Run `lat search "<natural language query>"` for semantic search across all sections. This uses vector embeddings to find sections by meaning, not just exact id matching. Requires `LAT_LLM_KEY` env var.
-
-When processing user prompts that contain `[[refs]]`, pipe them through `lat prompt` first to resolve references to `lat.md` section locations.
+- `lat locate "<section>"` — find a section by id (supports exact, subsection, and fuzzy matching)
+- `lat refs "<section>"` — find what references a section
+- `lat search "<natural language query>"` — semantic search across all sections using vector embeddings (requires `LAT_LLM_KEY` env var)
+- `lat prompt "<text>"` — expand `[[refs]]` in a prompt to resolved section locations; pipe user prompts through this before processing
 
 ## Code Conventions
 
@@ -38,8 +37,4 @@ See `lat.md/dev-process.md` for the full list. Key points:
 
 ## Verification
 
-After making changes, always run:
-1. `pnpm test` — all tests must pass (includes typecheck)
-2. `pnpm build && node dist/src/cli/index.js check` — validates all `@lat:` code refs resolve and all wiki links in `lat.md/` are valid
-
-Both must pass before considering work complete.
+After making changes, run `pnpm build && pnpm test`. This includes typecheck, `lat check` (wiki links + code refs), and all tests. Everything must pass before considering work complete.

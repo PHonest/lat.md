@@ -10,6 +10,14 @@ describe('typecheck', () => {
   });
 });
 
+describe('lat check', () => {
+  it('passes all checks (wiki links + code refs)', () => {
+    execSync('node dist/src/cli/index.js check', {
+      cwd: import.meta.dirname + '/..',
+    });
+  });
+});
+
 describe('parse', () => {
   it('parses a simple paragraph', () => {
     const tree = parse('Hello world');
