@@ -28,7 +28,7 @@ export default function Home() {
         alignItems: 'center',
         justifyContent: 'center',
         padding: '4vh 24px',
-        gap: '6vh',
+        gap: '4vh',
       }}
     >
       {/* Logo */}
