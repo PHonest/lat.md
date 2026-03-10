@@ -50,8 +50,13 @@ lat:
 
 ## User login
 ### Rejects expired tokens
+Tokens past their expiry timestamp are rejected with 401, even if otherwise valid.
+
 ### Handles missing password
+Login request without a password field returns 400 with a descriptive error.
 ```
+
+Every section MUST have a description — at least one sentence explaining what the test verifies and why. Empty sections with just a heading are not acceptable.
 
 Each test in code should reference its spec with exactly one comment placed next to the relevant test — not at the top of the file:
 
