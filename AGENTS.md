@@ -5,7 +5,7 @@
 The `lat.md/` directory contains the authoritative description of this codebase. Before making changes, read the relevant `lat.md/*.md` files to understand the concepts, architecture, and conventions.
 
 Current files:
-- `lat.md/cli.md` — CLI commands (`locate`, `refs`, `check`) and their behavior
+- `lat.md/cli.md` — CLI commands (`locate`, `refs`, `check`, `search`, `prompt`, `init`) and their behavior
 - `lat.md/markdown.md` — syntax extensions: wiki links, frontmatter
 - `lat.md/parser.md` — internal parsing: remark pipeline, wiki link AST nodes, section extraction
 - `lat.md/dev-process.md` — tooling, testing, formatting, publishing
@@ -23,6 +23,8 @@ When you add new functionality, commands, or change how the project is structure
 ## Using `lat`
 
 Run `lat locate "<section>"` to find a section by id. Run `lat refs "<section>"` to find what references it. Use these to understand how concepts connect before making changes.
+
+Run `lat search "<natural language query>"` for semantic search across all sections. This uses vector embeddings to find sections by meaning, not just exact id matching. Requires `LAT_LLM_KEY` env var.
 
 When processing user prompts that contain `[[refs]]`, pipe them through `lat prompt` first to resolve references to `lat.md` section locations.
 

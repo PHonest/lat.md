@@ -16,7 +16,8 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write 'src/**/*.ts'",
-    "format:check": "prettier --check 'src/**/*.ts'"
+    "format:check": "prettier --check 'src/**/*.ts'",
+    "cook-test-rag": "tsx scripts/cook-test-rag.ts"
   },
   "devDependencies": {
     "@types/mdast": "^4.0.4",
@@ -24,10 +25,12 @@
     "mdast-util-from-markdown": "^2.0.3",
     "micromark-util-types": "^2.0.2",
     "prettier": "^3.8.1",
+    "tsx": "^4.21.0",
     "typescript": "^5.7.0",
     "vitest": "^3.0.0"
   },
   "dependencies": {
+    "@libsql/client": "^0.17.0",
     "chalk": "^5.6.2",
     "commander": "^14.0.3",
     "ignore-walk": "^8.0.0",

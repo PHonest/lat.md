@@ -110,8 +110,9 @@ describe('basic-project', () => {
     const output = stripAnsi(formatSectionPreview(running, lat));
     const lines = output.split('\n');
     expect(lines[0]).toBe('  dev-process#Testing#Running Tests');
+    expect(lines[1]).toContain('Defined in');
     expect(lines[1]).toContain('dev-process.md:5-8');
-    expect(lines[3]).toBe('    Run tests with vitest.');
+    expect(lines[3]).toContain('> Run tests with vitest.');
   });
 
   // @lat: [[tests#Section Preview Formatting#Formats section without body]]
@@ -123,6 +124,7 @@ describe('basic-project', () => {
     const output = stripAnsi(formatSectionPreview(testing, lat));
     const lines = output.split('\n');
     expect(lines[0]).toBe('  dev-process#Testing');
+    expect(lines[1]).toContain('Defined in');
     expect(lines[1]).toContain('dev-process.md:3-4');
     expect(lines).toHaveLength(2);
   });

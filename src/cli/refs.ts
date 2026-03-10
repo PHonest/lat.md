@@ -9,7 +9,7 @@ import {
   flattenSections,
   type Section,
 } from '../lattice.js';
-import { formatSectionPreview } from '../format.js';
+import { formatSectionPreview, formatSectionId } from '../format.js';
 import { scanCodeRefs } from '../code-refs.js';
 import type { CliContext } from './context.js';
 
@@ -64,9 +64,9 @@ export async function refsCmd(
         matchingFromSections.has(s.id.toLowerCase()),
       );
 
-      for (const section of referrers) {
+      for (let i = 0; i < referrers.length; i++) {
         if (hasOutput) console.log('');
-        console.log(formatSectionPreview(section, ctx.latDir));
+        console.log(formatSectionPreview(referrers[i], ctx.latDir));
         hasOutput = true;
       }
     }

@@ -1,5 +1,5 @@
 import { loadAllSections, findSections } from '../lattice.js';
-import { formatSectionPreview } from '../format.js';
+import { formatResultList } from '../format.js';
 import type { CliContext } from './context.js';
 
 export async function locateCmd(
@@ -14,8 +14,5 @@ export async function locateCmd(
     process.exit(1);
   }
 
-  for (let i = 0; i < matches.length; i++) {
-    if (i > 0) console.log('');
-    console.log(formatSectionPreview(matches[i], ctx.latDir));
-  }
+  console.log(formatResultList(`Sections matching "${query}":`, matches, ctx.latDir, { numbered: true }));
 }

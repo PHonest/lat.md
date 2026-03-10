@@ -68,14 +68,76 @@ Implementation: `src/cli/prompt.ts`
 
 Initialize a `lat.md/` directory in the target directory (default: cwd). If one already exists, does nothing.
 
-Creates scaffolding from `templates/init/`: a `.gitignore` (ignoring `.obsidian`) and a `README.md` linking to the npm package.
+Creates scaffolding from `templates/init/`: a `.gitignore` (ignoring `.obsidian` and `.cache`) and a `README.md` linking to the npm package.
 
 Usage: `lat init [dir]`
 
 Implementation: `src/cli/init.ts`
 
+## search
+
+Semantic search across `lat.md` sections using vector embeddings.
+
+Usage: `lat search [query] [--limit=5] [--reindex]`
+
+Query is optional — `lat search --reindex` re-indexes without searching.
+
+Implementation: `src/cli/search.ts`, core logic in `src/search/`
+
+### Provider Detection
+
+Requires `LAT_LLM_KEY` env var. Provider is auto-detected from key prefix:
+- `sk-...` — OpenAI (uses `text-embedding-3-small`, 1536 dims)
+- `vck_...` — Vercel AI Gateway (uses `openai/text-embedding-3-small`, 1536 dims)
+- `sk-ant-...` — Anthropic (not supported, errors with guidance)
+- `REPLAY_LAT_LLM_KEY::<url>` — test-only replay server for offline testing
+
+Implementation: `src/search/provider.ts`
+
+### Embeddings
+
+Direct `fetch()` calls to the provider's OpenAI-compatible `/v1/embeddings` endpoint. No LangChain or other framework — keeps the dependency tree minimal. Batches up to 2048 texts per request.
+
+Implementation: `src/search/embeddings.ts`
+
+### Storage
+
+Uses `@libsql/client` (Turso's libsql) in local file mode — pure JS/WASM, no native addons. Vector search is built into libsql via `F32_BLOB` column type, `libsql_vector_idx` for indexing, and `vector_top_k()` for KNN queries.
+
+Single `sections` table holds metadata, content, content hash, and the embedding vector. No separate vector table needed.
+
+The database is stored at `lat.md/.cache/vectors.db` and should not be committed (included in `.gitignore` template).
+
+Implementation: `src/search/db.ts`
+
+### Indexing
+
+Sections are extracted via `loadAllSections()` + `flattenSections()`. For each section, the raw markdown between `startLine` and `endLine` is read (not just the `body` first-paragraph) for richer semantic signal.
+
+Content freshness is tracked via SHA-256 hashes. On each run:
+1. Parse all sections, compute hashes
+2. Compare against stored hashes in the DB
+3. Only re-embed new or changed sections (saves API cost)
+4. Delete DB rows for sections that no longer exist
+
+On first run, automatically indexes all sections. The `--reindex` flag forces a full rebuild.
+
+Implementation: `src/search/index.ts`
+
+### Vector Search
+
+Embeds the user's query via the same provider, then runs a `vector_top_k()` KNN query joined back to the sections table.
+
+Implementation: `src/search/search.ts`
+
 ## Section Preview
 
-Shared output format used by [[cli#locate]] and [[cli#refs]]. Shows the section id, file path with line range, and the first paragraph of body text.
+Shared output format used by [[cli#locate]], [[cli#refs]], and [[cli#search]]. Each section is rendered as:
 
-Implementation: `src/format.ts`
+1. Section id (path segments dimmed, final segment bold)
+2. "Defined in" label with file path (cyan) and line range
+3. Body text quoted with `>` (first paragraph, truncated at 200 chars)
+
+Commands that return multiple results use `formatResultList()` which adds a bold header, numbered items, and consistent spacing.
+
+Implementation: `src/format.ts` — exports `formatSectionId`, `formatSectionPreview`, and `formatResultList`
