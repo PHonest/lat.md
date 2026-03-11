@@ -1,6 +1,7 @@
 # lat.md
 
 [![CI](https://github.com/1st1/lat.md/actions/workflows/ci.yml/badge.svg)](https://github.com/1st1/lat.md/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/lat.md)](https://www.npmjs.com/package/lat.md)
 
 A knowledge graph for your codebase, written in markdown.
 
