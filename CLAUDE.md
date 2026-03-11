@@ -1,1 +1,1 @@
-AGENTS.md
+templates/AGENTS.md
