@@ -17,15 +17,21 @@ A `wikiLink` node has `value` (the target string) and `data.alias` (string or nu
 A section is a heading plus everything under it until the next same-or-higher-depth heading. Parsed by `parseSections()` in `src/lattice.ts`.
 
 Each section has:
-- `id` — hierarchical path where the first segment is the file stem: `dev-process#Testing#Running Tests`
+- `id` — hierarchical path where the first segment is the vault-relative file path (without `.md`): `dev-process#Testing#Running Tests`, `tests/search#RAG Replay Tests`
 - `heading` — the heading text
 - `depth` — markdown heading level (1–6)
-- `file` — the file stem (without `.md`)
+- `file` — vault-relative file path without `.md` (e.g. `dev-process`, `tests/search`)
 - `children` — nested subsections forming a tree
 - `startLine` / `endLine` — source positions
 - `body` — first paragraph text (used by [[cli#Section Preview]])
 
 [[markdown#Frontmatter]] is stripped before parsing.
+
+## Short Ref Resolution
+
+References can use just the file name (without directory path) when the name is unique across the vault. For example, `[[search#Provider Detection]]` resolves to `tests/search#Provider Detection` if there's only one `search.md` in the vault. If multiple files share the same name, the full path is required — `lat check` reports ambiguous refs as errors.
+
+Resolution is handled by `resolveRef()` in `src/lattice.ts` and used consistently across `lat check`, `lat refs`, `lat prompt`, and `findSections`.
 
 ## Refs Extraction
 

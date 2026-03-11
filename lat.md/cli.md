@@ -34,7 +34,7 @@ Implementation: `src/cli/refs.ts`
 
 Validation command group. Runs all checks when invoked without a subcommand.
 
-Usage: `lat check [md|code-refs]`
+Usage: `lat check [md|code-refs|index]`
 
 Implementation: `src/cli/check.ts`
 
@@ -47,6 +47,17 @@ Validate that all [[parser#Wiki Links]] in `lat.md` markdown files point to exis
 Two validations:
 1. Every `// @lat: [[...]]` or `# @lat: [[...]]` comment in source code must point to a real section in `lat.md/`
 2. For files with [[markdown#Frontmatter#require-code-mention]], every leaf section must be referenced by at least one `// @lat:` comment in the codebase
+
+### index
+
+Validate directory index files. Every directory inside `lat.md/` (including the root) must have an index file named after the directory (e.g. `lat.md/lat.md` for the root, `lat.md/api/api.md` for a subdirectory). Each index file must contain a bullet list covering every visible file and subdirectory with a one-sentence description, using the format `- **name** — description`.
+
+Three checks:
+1. **Missing index file** — errors with a ready-to-copy bullet list snippet
+2. **Missing entries** — index file exists but doesn't list all visible entries
+3. **Stale entries** — index file lists an entry that doesn't exist on disk
+
+Directory walking uses [[dev-process#File Walking]] to respect `.gitignore` rules — hidden/ignored entries (`.cache`, `.obsidian`, etc.) are automatically excluded.
 
 ## prompt
 

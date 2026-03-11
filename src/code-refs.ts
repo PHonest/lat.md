@@ -1,14 +1,11 @@
 import { readFile } from 'node:fs/promises';
 import { join, relative } from 'node:path';
-// @ts-expect-error -- no type declarations
-import walk from 'ignore-walk';
+import { walkEntries } from './walk.js';
 
-/** Walk project files respecting .gitignore. Skips lat.md/, .claude/, and sub-projects. */
+/** Walk project files for code-ref scanning. Uses walkEntries for .gitignore
+ *  support, then additionally skips .md files, lat.md/, .claude/, and sub-projects. */
 export async function walkFiles(dir: string): Promise<string[]> {
-  const entries: string[] = await walk({
-    path: dir,
-    ignoreFiles: ['.gitignore'],
-  });
+  const entries = await walkEntries(dir);
 
   // Collect directories that contain their own lat.md/ (sub-projects)
   const subProjects = new Set<string>();
@@ -21,7 +18,6 @@ export async function walkFiles(dir: string): Promise<string[]> {
     .filter(
       (e) =>
         !e.endsWith('.md') &&
-        !e.startsWith('.git/') &&
         !e.startsWith('lat.md/') &&
         !e.startsWith('.claude/') &&
         ![...subProjects].some((prefix) => e.startsWith(prefix)),

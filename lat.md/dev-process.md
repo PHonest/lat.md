@@ -14,9 +14,7 @@ Vitest is the test runner. Tests live in the top-level `tests/` directory.
 
 ### Test Structure
 
-Tests use a fixture-based approach. `tests/cases/` contains directories that each represent an isolated test scenario. Each case directory has its own `lat.md/` and source files forming a self-contained mini-project. The test harness in `tests/cases.test.ts` provides helpers (`caseDir()`, `latDir()`) to point `lat` functions at a given fixture. This avoids creating temp dirs or files at runtime — every scenario is a static fixture on disk.
-
-`tests/lattice.test.ts` holds a small number of pure unit tests that use inline strings rather than fixtures (e.g. verifying `parseSections` handles edge cases).
+See [[tests#Conventions]] for testing principles. Tests use fixture directories under `tests/cases/`, each a self-contained mini-project with its own `lat.md/` and source files. The test harness in `tests/cases.test.ts` provides helpers (`caseDir()`, `latDir()`) to point `lat` functions at a given fixture.
 
 ### Running Tests
 
@@ -29,7 +27,11 @@ Every test run includes a full `tsc --noEmit` pass over the entire codebase. If 
 
 ## File Walking
 
-`walkFiles` uses the `ignore-walk` npm package configured with `.gitignore` to scan for `@lat:` code references. Generated, vendored, and build files that are gitignored won't produce spurious code refs. The `.git/`, `lat.md/`, `.claude/` directories and all `.md` files are additionally filtered out. Directories containing their own `lat.md/` (sub-projects) are also skipped to avoid scanning nested projects.
+All directory walking goes through `walkEntries()` in `src/walk.ts` — the single entry point that wraps the `ignore-walk` npm package with `.gitignore` support and filters out `.git/` and dotfiles. This ensures `.gitignore` rules are consistently honored everywhere.
+
+`walkFiles()` in `src/code-refs.ts` calls `walkEntries()` then additionally skips `.md` files, `lat.md/`, `.claude/`, and sub-projects (directories containing their own `lat.md/`).
+
+`checkIndex()` in `src/cli/check.ts` calls `walkEntries()` on the `lat.md/` directory itself to discover visible entries for index validation.
 
 ## Formatting
 

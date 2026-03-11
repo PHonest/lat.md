@@ -15,7 +15,7 @@ import type { Server } from 'node:http';
 
 // --- Unit tests (always run) ---
 
-// @lat: [[tests#Search#Provider Detection]]
+// @lat: [[search#Provider Detection]]
 describe('detectProvider', () => {
   it('detects OpenAI key', () => {
     const p = detectProvider('sk-abc123');
@@ -59,6 +59,9 @@ describe.skipIf(!canRun)('search (rag)', () => {
   let flushCapture: () => void;
 
   beforeAll(async () => {
+    // These tests mutate the fixture (delete files), so disable FS caching
+    process.env._LAT_TEST_DISABLE_FS_CACHE = '1';
+
     if (capturing) {
       // Capture mode: proxy to real API, record vectors
       const realKey = process.env.LAT_LLM_KEY;
@@ -95,13 +98,14 @@ describe.skipIf(!canRun)('search (rag)', () => {
   });
 
   afterAll(async () => {
+    delete process.env._LAT_TEST_DISABLE_FS_CACHE;
     if (capturing) flushCapture();
     if (db) await closeDb(db);
     if (server) server.close();
     if (tmp) rmSync(tmp, { recursive: true, force: true });
   });
 
-  // @lat: [[tests#Search#RAG Replay Tests#Indexes all sections]]
+  // @lat: [[search#RAG Replay Tests#Indexes all sections]]
   it('indexes all sections', async () => {
     const stats = await indexSections(latDir, db, provider, replayKey);
     expect(stats.added).toBe(9);
@@ -110,7 +114,7 @@ describe.skipIf(!canRun)('search (rag)', () => {
     expect(stats.unchanged).toBe(0);
   });
 
-  // @lat: [[tests#Search#RAG Replay Tests#Finds auth section for login query]]
+  // @lat: [[search#RAG Replay Tests#Finds auth section for login query]]
   it('finds auth section for login query', async () => {
     const results = await searchSections(
       db,
@@ -122,7 +126,7 @@ describe.skipIf(!canRun)('search (rag)', () => {
     expect(results[0].id).toContain('Authentication');
   });
 
-  // @lat: [[tests#Search#RAG Replay Tests#Finds performance section for latency query]]
+  // @lat: [[search#RAG Replay Tests#Finds performance section for latency query]]
   it('finds performance section for latency query', async () => {
     const results = await searchSections(
       db,
@@ -134,7 +138,7 @@ describe.skipIf(!canRun)('search (rag)', () => {
     expect(results[0].id).toContain('Performance');
   });
 
-  // @lat: [[tests#Search#RAG Replay Tests#Incremental index skips unchanged sections]]
+  // @lat: [[search#RAG Replay Tests#Incremental index skips unchanged sections]]
   it('incremental index skips unchanged sections', async () => {
     const stats = await indexSections(latDir, db, provider, replayKey);
     expect(stats.unchanged).toBe(9);
@@ -143,7 +147,7 @@ describe.skipIf(!canRun)('search (rag)', () => {
     expect(stats.removed).toBe(0);
   });
 
-  // @lat: [[tests#Search#RAG Replay Tests#Detects deleted sections when file is removed]]
+  // @lat: [[search#RAG Replay Tests#Detects deleted sections when file is removed]]
   it('detects deleted sections when file is removed', async () => {
     rmSync(join(latDir, 'testing.md'));
 

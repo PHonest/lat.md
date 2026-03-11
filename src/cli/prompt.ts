@@ -3,6 +3,8 @@ import {
   loadAllSections,
   findSections,
   flattenSections,
+  buildFileIndex,
+  resolveRef,
   type Section,
 } from '../lattice.js';
 import type { CliContext } from './context.js';
@@ -22,6 +24,8 @@ function formatContext(section: Section, latDir: string): string {
 export async function promptCmd(ctx: CliContext, text: string): Promise<void> {
   const allSections = await loadAllSections(ctx.latDir);
   const flat = flattenSections(allSections);
+  const sectionIds = new Set(flat.map((s) => s.id.toLowerCase()));
+  const fileIndex = buildFileIndex(allSections);
 
   const refs = [...text.matchAll(WIKI_LINK_RE)];
   if (refs.length === 0) {
@@ -35,7 +39,13 @@ export async function promptCmd(ctx: CliContext, text: string): Promise<void> {
     const target = match[1];
     if (resolved.has(target)) continue;
 
-    const q = target.toLowerCase();
+    // Resolve short refs (e.g. search#X → tests/search#X)
+    const { resolved: resolvedTarget } = resolveRef(
+      target,
+      sectionIds,
+      fileIndex,
+    );
+    const q = resolvedTarget.toLowerCase();
     const exact = flat.find((s) => s.id.toLowerCase() === q);
     if (exact) {
       resolved.set(target, exact);

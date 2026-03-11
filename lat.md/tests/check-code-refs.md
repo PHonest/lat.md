@@ -1,0 +1,13 @@
+---
+lat:
+  require-code-mention: true
+---
+# Check Code Refs
+
+## Detects dangling code ref
+
+Given a source file with `@lat: [[Nonexistent]]`, [[cli#check#code-refs]] should report it as pointing to a nonexistent section.
+
+## Detects missing code mention for required file
+
+Given a `lat.md` file with [[markdown#Frontmatter#require-code-mention]] and a leaf section not referenced by any `@lat:` comment in the codebase, [[cli#check#code-refs]] should report the uncovered section.

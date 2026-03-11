@@ -33,7 +33,7 @@ If `lat search` fails because `LAT_LLM_KEY` is not set, explain to the user that
 
 # Syntax primer
 
-- **Section ids**: `file-stem#Heading#SubHeading` (e.g. `cli#search#Indexing`)
+- **Section ids**: `path/to/file#Heading#SubHeading` — full form uses vault-relative path (e.g. `tests/search#RAG Replay Tests`). Short form uses bare file name when unique (e.g. `search#RAG Replay Tests`, `cli#search#Indexing`).
 - **Wiki links**: `[[target]]` or `[[target|alias]]` — cross-references between sections
 - **Code refs**: `// @lat: [[section-id]]` (JS/TS) or `# @lat: [[section-id]]` (Python) — ties source code to concepts
 

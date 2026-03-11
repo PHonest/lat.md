@@ -89,6 +89,15 @@ check
     await checkCodeRefsCmd(ctx);
   });
 
+check
+  .command('index')
+  .description('Validate directory index files in lat.md')
+  .action(async () => {
+    const ctx = resolveContext(program.opts());
+    const { checkIndexCmd } = await import('./check.js');
+    await checkIndexCmd(ctx);
+  });
+
 program
   .command('prompt')
   .description('Expand [[refs]] in a prompt to lat.md section locations')

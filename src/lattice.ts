@@ -1,7 +1,8 @@
-import { readdir, readFile } from 'node:fs/promises';
-import { dirname, join, basename, resolve } from 'node:path';
+import { readFile } from 'node:fs/promises';
+import { dirname, join, basename, relative, resolve } from 'node:path';
 import { existsSync, statSync } from 'node:fs';
 import { parse } from './parser.js';
+import { walkEntries } from './walk.js';
 import { visit } from 'unist-util-visit';
 import type { Heading, RootContent, Text } from 'mdast';
 import type { WikiLink } from './extensions/wiki-link/types.js';
@@ -57,7 +58,7 @@ export function findLatticeDir(from?: string): string | null {
 }
 
 export async function listLatticeFiles(latticeDir: string): Promise<string[]> {
-  const entries = await readdir(latticeDir);
+  const entries = await walkEntries(latticeDir);
   return entries
     .filter((e) => e.endsWith('.md'))
     .sort()
@@ -89,9 +90,15 @@ function lastLine(content: string): number {
   return lines[lines.length - 1] === '' ? lines.length - 1 : lines.length;
 }
 
-export function parseSections(filePath: string, content: string): Section[] {
+export function parseSections(
+  filePath: string,
+  content: string,
+  latticeDir?: string,
+): Section[] {
   const tree = parse(stripFrontmatter(content));
-  const file = basename(filePath, '.md');
+  const file = latticeDir
+    ? relative(latticeDir, filePath).replace(/\.md$/, '')
+    : basename(filePath, '.md');
   const roots: Section[] = [];
   const stack: Section[] = [];
   const flat: Section[] = [];
@@ -163,14 +170,28 @@ export function parseSections(filePath: string, content: string): Section[] {
   return roots;
 }
 
-export async function loadAllSections(latticeDir: string): Promise<Section[]> {
-  const files = await listLatticeFiles(latticeDir);
-  const all: Section[] = [];
-  for (const file of files) {
-    const content = await readFile(file, 'utf-8');
-    all.push(...parseSections(file, content));
+const sectionsCache = new Map<string, Promise<Section[]>>();
+
+export function loadAllSections(latticeDir: string): Promise<Section[]> {
+  const noCache = !!process.env._LAT_TEST_DISABLE_FS_CACHE;
+  const key = resolve(latticeDir);
+  if (!noCache) {
+    const cached = sectionsCache.get(key);
+    if (cached) return cached;
   }
-  return all;
+  const result = (async () => {
+    const files = await listLatticeFiles(latticeDir);
+    const all: Section[] = [];
+    for (const file of files) {
+      const content = await readFile(file, 'utf-8');
+      all.push(...parseSections(file, content, latticeDir));
+    }
+    return all;
+  })();
+  if (!noCache) {
+    sectionsCache.set(key, result);
+  }
+  return result;
 }
 
 export function flattenSections(sections: Section[]): Section[] {
@@ -215,12 +236,91 @@ function tailSegments(id: string): string[] {
   return tails;
 }
 
+/**
+ * Build an index mapping bare file stems to their full vault-relative paths.
+ * Used by resolveRef to allow short references when a stem is unambiguous.
+ */
+export function buildFileIndex(sections: Section[]): Map<string, string[]> {
+  const flat = flattenSections(sections);
+  const index = new Map<string, Set<string>>();
+  for (const s of flat) {
+    const stem = s.file.includes('/') ? s.file.split('/').pop()! : null;
+    if (stem) {
+      if (!index.has(stem)) index.set(stem, new Set());
+      index.get(stem)!.add(s.file);
+    }
+  }
+  const result = new Map<string, string[]>();
+  for (const [stem, paths] of index) {
+    result.set(stem, [...paths]);
+  }
+  return result;
+}
+
+export type ResolveResult = {
+  resolved: string;
+  ambiguous: string[] | null;
+  /** When ambiguous but exactly one candidate has the section, suggest it. */
+  suggested: string | null;
+};
+
+/**
+ * Resolve a potentially short reference to its canonical full-path form.
+ * If the file segment of the ref is a bare stem that uniquely maps to one
+ * full path, expands it. Otherwise returns the ref unchanged.
+ *
+ * When ambiguous (multiple files share the stem), returns all candidates.
+ * If exactly one candidate actually contains the referenced section,
+ * `suggested` is set to that candidate so the caller can propose a fix.
+ */
+export function resolveRef(
+  target: string,
+  sectionIds: Set<string>,
+  fileIndex: Map<string, string[]>,
+): ResolveResult {
+  // Already matches a known section — no resolution needed
+  if (sectionIds.has(target.toLowerCase())) {
+    return { resolved: target, ambiguous: null, suggested: null };
+  }
+
+  // Extract the file segment (before first #) and try resolving it
+  const hashIdx = target.indexOf('#');
+  const filePart = hashIdx === -1 ? target : target.slice(0, hashIdx);
+  const rest = hashIdx === -1 ? '' : target.slice(hashIdx);
+
+  const candidates = fileIndex.get(filePart) ?? [];
+  if (candidates.length === 1) {
+    const expanded = candidates[0] + rest;
+    if (sectionIds.has(expanded.toLowerCase())) {
+      return { resolved: expanded, ambiguous: null, suggested: null };
+    }
+  } else if (candidates.length > 1) {
+    // Multiple files share this stem — ambiguous at the filename level
+    const all = candidates.map((c) => c + rest);
+    const valid = candidates.filter((c) =>
+      sectionIds.has((c + rest).toLowerCase()),
+    );
+    return {
+      resolved: target,
+      ambiguous: all,
+      suggested: valid.length === 1 ? valid[0] + rest : null,
+    };
+  }
+
+  return { resolved: target, ambiguous: null, suggested: null };
+}
+
 const MAX_DISTANCE_RATIO = 0.4;
 
 export function findSections(sections: Section[], query: string): Section[] {
   const flat = flattenSections(sections);
-  const q = query.toLowerCase();
   const isFullPath = query.includes('#');
+
+  // Tier 0: resolve short refs (e.g. search#X → tests/search#X)
+  const sectionIds = new Set(flat.map((s) => s.id.toLowerCase()));
+  const fileIndex = buildFileIndex(sections);
+  const { resolved } = resolveRef(query, sectionIds, fileIndex);
+  const q = resolved.toLowerCase();
 
   // Tier 1: exact full-id match
   const exact = flat.filter((s) => s.id.toLowerCase() === q);
@@ -260,9 +360,15 @@ export function findSections(sections: Section[], query: string): Section[] {
   return [...exact, ...subsection, ...fuzzy.map((f) => f.section)];
 }
 
-export function extractRefs(filePath: string, content: string): Ref[] {
+export function extractRefs(
+  filePath: string,
+  content: string,
+  latticeDir?: string,
+): Ref[] {
   const tree = parse(stripFrontmatter(content));
-  const file = basename(filePath, '.md');
+  const file = latticeDir
+    ? relative(latticeDir, filePath).replace(/\.md$/, '')
+    : basename(filePath, '.md');
   const refs: Ref[] = [];
 
   // Build a flat list of sections to determine enclosing section for each wiki link

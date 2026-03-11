@@ -7,6 +7,8 @@ import {
   parseSections,
   extractRefs,
   flattenSections,
+  buildFileIndex,
+  resolveRef,
   type Section,
 } from '../lattice.js';
 import { formatSectionPreview, formatSectionId } from '../format.js';
@@ -32,9 +34,12 @@ export async function refsCmd(
     process.exit(1);
   }
 
-  // Require exact full-path match
-  const q = query.toLowerCase();
+  // Resolve short refs and require exact match
   const flat = flattenSections(allSections);
+  const sectionIds = new Set(flat.map((s) => s.id.toLowerCase()));
+  const fileIndex = buildFileIndex(allSections);
+  const { resolved } = resolveRef(query, sectionIds, fileIndex);
+  const q = resolved.toLowerCase();
   const exactMatch = flat.find((s) => s.id.toLowerCase() === q);
   if (!exactMatch) {
     console.error(ctx.chalk.red(`No section "${query}" found.`));
@@ -55,9 +60,14 @@ export async function refsCmd(
     const matchingFromSections = new Set<string>();
     for (const file of files) {
       const content = await readFile(file, 'utf-8');
-      const fileRefs = extractRefs(file, content);
+      const fileRefs = extractRefs(file, content, ctx.latDir);
       for (const ref of fileRefs) {
-        if (ref.target.toLowerCase() === targetId) {
+        const { resolved: refResolved } = resolveRef(
+          ref.target,
+          sectionIds,
+          fileIndex,
+        );
+        if (refResolved.toLowerCase() === targetId) {
           matchingFromSections.add(ref.fromSection.toLowerCase());
         }
       }
@@ -80,7 +90,12 @@ export async function refsCmd(
     const projectRoot = join(ctx.latDir, '..');
     const { refs: codeRefs } = await scanCodeRefs(projectRoot);
     for (const ref of codeRefs) {
-      if (ref.target.toLowerCase() === targetId) {
+      const { resolved: codeResolved } = resolveRef(
+        ref.target,
+        sectionIds,
+        fileIndex,
+      );
+      if (codeResolved.toLowerCase() === targetId) {
         if (hasOutput) console.log('');
         console.log(`  ${ref.file}:${ref.line}`);
         hasOutput = true;

@@ -1,0 +1,60 @@
+---
+lat:
+  require-code-mention: true
+---
+
+# Ref Resolution
+
+Tests for wiki link and code ref resolution across vault subdirectories — ambiguous short refs, unique short refs, and fully qualified refs.
+
+## Ambiguous short ref in md
+
+When two directories contain a file with the same stem (e.g. `alpha/notes.md` and `beta/notes.md`), a wiki link using just the short name `[[notes#Topic A]]` in a markdown file is flagged as ambiguous by `check md`, with an error listing both candidate full paths so the user can pick the right one.
+
+## Ambiguous short ref unique section
+
+When a section exists in only one of the duplicate-stem files (e.g. `Topic C` only in `alpha/notes.md`), a short ref `[[notes#Topic C]]` is still flagged as ambiguous because two files named `notes.md` exist, but the error message suggests the specific fix (`did you mean "[[alpha/notes#Topic C]]"?`) along with listing all matching file paths.
+
+## Ambiguous short ref in code
+
+When two directories contain a file with the same stem, a `@lat:` code comment using the short name (e.g. `// @lat: [[notes#Topic A]]`) is flagged as ambiguous by `check code-refs`, with an error listing both candidate full paths.
+
+## Short ref passes check md
+
+When a file stem is unique in the vault (e.g. only one `setup.md` exists, under `guides/`), a wiki link using the short name `[[setup#Install]]` in a markdown file passes `check md` without errors.
+
+## Short ref passes check code-refs
+
+When a file stem is unique in the vault, a `@lat:` code comment using the short name (e.g. `// @lat: [[setup#Configure]]`) passes `check code-refs` without errors.
+
+## Short ref findSections resolves
+
+`findSections` resolves a short ref like `setup#Install` to the full vault-relative section `guides/setup#Install` and returns the matching section.
+
+## Short ref refs finds md references
+
+`lat refs` for a short ref target finds wiki link references from markdown files that use the short form.
+
+## Short ref refs finds code references
+
+`lat refs` for a short ref target finds `@lat:` code references that use the short form.
+
+## Full ref passes check md
+
+A wiki link using the full vault-relative path `[[guides/setup#Install]]` passes `check md` without errors.
+
+## Full ref passes check code-refs
+
+A `@lat:` code comment using the full vault-relative path `[[guides/setup#Configure]]` passes `check code-refs` without errors.
+
+## Full ref findSections resolves
+
+`findSections` resolves a full vault-relative ref like `guides/setup#Install` and returns the matching section.
+
+## Full ref refs finds md references
+
+`lat refs` for a full ref target finds wiki link references from markdown files that use the full path form.
+
+## Full ref refs finds code references
+
+`lat refs` for a full ref target finds `@lat:` code references that use the full path form.
