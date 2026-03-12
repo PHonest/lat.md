@@ -6,6 +6,10 @@ export function readAgentsTemplate(): string {
   return readFileSync(join(findTemplatesDir(), 'AGENTS.md'), 'utf-8');
 }
 
+export function readCursorRulesTemplate(): string {
+  return readFileSync(join(findTemplatesDir(), 'cursor-rules.md'), 'utf-8');
+}
+
 export async function genCmd(target: string): Promise<void> {
   const normalized = target.toLowerCase();
   if (normalized !== 'agents.md' && normalized !== 'claude.md') {

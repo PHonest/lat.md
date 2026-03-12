@@ -380,4 +380,12 @@ export async function checkAllCmd(ctx: CliContext): Promise<void> {
   formatErrorCount(ctx, totalErrors);
   if (totalErrors > 0) process.exit(1);
   console.log(ctx.chalk.green('All checks passed'));
+
+  if (!process.env.LAT_LLM_KEY) {
+    console.log(
+      ctx.chalk.yellow('Warning:') +
+        ' LAT_LLM_KEY is not set — semantic search (lat search) will not work.' +
+        ' Set it to an OpenAI (sk-...) or Vercel AI (vck_...) key.',
+    );
+  }
 }

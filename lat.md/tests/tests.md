@@ -21,3 +21,4 @@ High-level test descriptions. Actual test code lives in `tests/`.
 - **check-index.md** — Validating directory index files
 - **prompt.md** — Prompt command ref expansion and context block formatting
 - **ref-resolution.md** — Wiki link and code ref resolution across vault subdirectories
+- **mcp.md** — MCP server tool listing and tool call responses

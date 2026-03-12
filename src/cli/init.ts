@@ -6,13 +6,12 @@ import {
   readFileSync,
   copyFileSync,
   chmodSync,
-  symlinkSync,
 } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import chalk from 'chalk';
 import { findTemplatesDir } from './templates.js';
-import { readAgentsTemplate } from './gen.js';
+import { readAgentsTemplate, readCursorRulesTemplate } from './gen.js';
 
 async function confirm(
   rl: ReturnType<typeof createInterface>,
@@ -22,15 +21,16 @@ async function confirm(
     const answer = await rl.question(`${message} ${chalk.dim('[Y/n]')} `);
     return answer.trim().toLowerCase() !== 'n';
   } catch {
-    return true;
+    // Ctrl+C or closed stdin — abort
+    console.log('');
+    process.exit(130);
   }
 }
 
+// ── Claude Code helpers ──────────────────────────────────────────────
+
 const HOOK_COMMAND = '.claude/hooks/lat-prompt-hook.sh';
 
-/**
- * Check if .claude/settings.json already has the lat-prompt hook configured.
- */
 function hasLatHook(settingsPath: string): boolean {
   if (!existsSync(settingsPath)) return false;
   try {
@@ -45,16 +45,14 @@ function hasLatHook(settingsPath: string): boolean {
   }
 }
 
-/**
- * Add the lat-prompt hook to .claude/settings.json, preserving existing config.
- */
 function addLatHook(settingsPath: string): void {
   let settings: Record<string, unknown> = {};
   if (existsSync(settingsPath)) {
+    const raw = readFileSync(settingsPath, 'utf-8');
     try {
-      settings = JSON.parse(readFileSync(settingsPath, 'utf-8'));
-    } catch {
-      // Corrupted file — start fresh
+      settings = JSON.parse(raw);
+    } catch (e) {
+      throw new Error(`Cannot parse ${settingsPath}: ${(e as Error).message}`);
     }
   }
 
@@ -73,6 +71,224 @@ function addLatHook(settingsPath: string): void {
 
   writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n');
 }
+
+// ── Gitignore helper ─────────────────────────────────────────────────
+
+function ensureGitignored(root: string, entry: string): void {
+  const gitignorePath = join(root, '.gitignore');
+  const gitDir = join(root, '.git');
+
+  // Check if already ignored
+  if (existsSync(gitignorePath)) {
+    const content = readFileSync(gitignorePath, 'utf-8');
+    const lines = content.split('\n').map((l) => l.trim());
+    if (lines.includes(entry)) {
+      console.log(chalk.green(`  ${entry}`) + ' already in .gitignore');
+      return;
+    }
+  }
+
+  if (existsSync(gitignorePath)) {
+    // Append to existing .gitignore
+    let content = readFileSync(gitignorePath, 'utf-8');
+    if (!content.endsWith('\n')) content += '\n';
+    writeFileSync(gitignorePath, content + entry + '\n');
+    console.log(chalk.green(`  Added ${entry}`) + ' to .gitignore');
+  } else if (existsSync(gitDir)) {
+    // Create .gitignore with the entry
+    writeFileSync(gitignorePath, entry + '\n');
+    console.log(chalk.green(`  Created .gitignore`) + ` with ${entry}`);
+  } else {
+    console.log(
+      chalk.yellow(`  Warning:`) +
+        ` could not add ${entry} to .gitignore (not a git repository)`,
+    );
+  }
+}
+
+// ── MCP command detection ────────────────────────────────────────────
+
+/**
+ * Derive the MCP server command from the currently running binary.
+ * If `lat init` was invoked as `/path/to/lat`, we emit
+ * `{ command: "/path/to/lat", args: ["mcp"] }` so the MCP client
+ * starts the same binary.
+ */
+function mcpCommand(): { command: string; args: string[] } {
+  return { command: resolve(process.argv[1]), args: ['mcp'] };
+}
+
+// ── MCP config helpers ───────────────────────────────────────────────
+
+type McpConfig = {
+  mcpServers: Record<string, { command: string; args: string[] }>;
+};
+
+function hasMcpServer(configPath: string): boolean {
+  if (!existsSync(configPath)) return false;
+  try {
+    const cfg = JSON.parse(readFileSync(configPath, 'utf-8'));
+    return !!cfg?.mcpServers?.lat;
+  } catch {
+    return false;
+  }
+}
+
+function addMcpServer(configPath: string): void {
+  let cfg: McpConfig = { mcpServers: {} };
+  if (existsSync(configPath)) {
+    const raw = readFileSync(configPath, 'utf-8');
+    try {
+      cfg = JSON.parse(raw);
+      if (!cfg.mcpServers) cfg.mcpServers = {};
+    } catch (e) {
+      throw new Error(`Cannot parse ${configPath}: ${(e as Error).message}`);
+    }
+  }
+
+  cfg.mcpServers.lat = mcpCommand();
+
+  mkdirSync(join(configPath, '..'), { recursive: true });
+  writeFileSync(configPath, JSON.stringify(cfg, null, 2) + '\n');
+}
+
+// ── Per-agent setup ──────────────────────────────────────────────────
+
+function setupAgentsMd(root: string, template: string): void {
+  const agentsPath = join(root, 'AGENTS.md');
+  if (!existsSync(agentsPath)) {
+    writeFileSync(agentsPath, template);
+    console.log(chalk.green('Created AGENTS.md'));
+  } else {
+    console.log(chalk.green('AGENTS.md') + ' already exists');
+  }
+}
+
+async function setupClaudeCode(
+  root: string,
+  template: string,
+): Promise<string[]> {
+  const created: string[] = [];
+
+  // CLAUDE.md — written directly (not a symlink)
+  const claudePath = join(root, 'CLAUDE.md');
+  if (!existsSync(claudePath)) {
+    writeFileSync(claudePath, template);
+    console.log(chalk.green('Created CLAUDE.md'));
+    created.push('CLAUDE.md');
+  } else {
+    console.log(chalk.green('CLAUDE.md') + ' already exists');
+  }
+
+  // Prompt hook
+  const claudeDir = join(root, '.claude');
+  const hooksDir = join(claudeDir, 'hooks');
+  const hookPath = join(hooksDir, 'lat-prompt-hook.sh');
+  const settingsPath = join(claudeDir, 'settings.json');
+
+  if (hasLatHook(settingsPath)) {
+    console.log(chalk.green('  Prompt hook') + ' already configured');
+  } else {
+    mkdirSync(hooksDir, { recursive: true });
+    const templateHook = join(findTemplatesDir(), 'lat-prompt-hook.sh');
+    copyFileSync(templateHook, hookPath);
+    chmodSync(hookPath, 0o755);
+    addLatHook(settingsPath);
+    console.log(chalk.green('  Prompt hook') + ' installed');
+    created.push('.claude/hooks/lat-prompt-hook.sh');
+  }
+
+  // MCP server → .mcp.json at project root
+  const mcpPath = join(root, '.mcp.json');
+  if (hasMcpServer(mcpPath)) {
+    console.log(chalk.green('  MCP server') + ' already configured');
+  } else {
+    addMcpServer(mcpPath);
+    console.log(
+      chalk.green('  MCP server') + ' registered in .mcp.json',
+    );
+    created.push('.mcp.json');
+  }
+
+  // Ensure .mcp.json is gitignored (it contains local absolute paths)
+  ensureGitignored(root, '.mcp.json');
+
+  return created;
+}
+
+async function setupCursor(root: string): Promise<string[]> {
+  const created: string[] = [];
+
+  // .cursor/rules/lat.md
+  const rulesDir = join(root, '.cursor', 'rules');
+  const rulesPath = join(rulesDir, 'lat.md');
+  if (!existsSync(rulesPath)) {
+    mkdirSync(rulesDir, { recursive: true });
+    writeFileSync(rulesPath, readCursorRulesTemplate());
+    console.log(chalk.green('  Rules') + ' created at .cursor/rules/lat.md');
+    created.push('.cursor/rules/lat.md');
+  } else {
+    console.log(chalk.green('  Rules') + ' already exist');
+  }
+
+  // .cursor/mcp.json
+  const mcpPath = join(root, '.cursor', 'mcp.json');
+  if (hasMcpServer(mcpPath)) {
+    console.log(chalk.green('  MCP server') + ' already configured');
+  } else {
+    addMcpServer(mcpPath);
+    console.log(
+      chalk.green('  MCP server') + ' registered in .cursor/mcp.json',
+    );
+    created.push('.cursor/mcp.json');
+  }
+
+  // Ensure .cursor/mcp.json is gitignored (it contains local absolute paths)
+  ensureGitignored(root, '.cursor/mcp.json');
+
+  console.log('');
+  console.log(
+    chalk.yellow('  Note:') +
+      ' Enable MCP in Cursor: Settings → Features → MCP → check "Enable MCP"',
+  );
+
+  return created;
+}
+
+async function setupCopilot(root: string): Promise<string[]> {
+  const created: string[] = [];
+
+  // .github/copilot-instructions.md
+  const githubDir = join(root, '.github');
+  const instructionsPath = join(githubDir, 'copilot-instructions.md');
+  if (!existsSync(instructionsPath)) {
+    mkdirSync(githubDir, { recursive: true });
+    writeFileSync(instructionsPath, readAgentsTemplate());
+    console.log(
+      chalk.green('  Instructions') +
+        ' created at .github/copilot-instructions.md',
+    );
+    created.push('.github/copilot-instructions.md');
+  } else {
+    console.log(chalk.green('  Instructions') + ' already exist');
+  }
+
+  // .vscode/mcp.json
+  const mcpPath = join(root, '.vscode', 'mcp.json');
+  if (hasMcpServer(mcpPath)) {
+    console.log(chalk.green('  MCP server') + ' already configured');
+  } else {
+    addMcpServer(mcpPath);
+    console.log(
+      chalk.green('  MCP server') + ' registered in .vscode/mcp.json',
+    );
+    created.push('.vscode/mcp.json');
+  }
+
+  return created;
+}
+
+// ── Main init flow ───────────────────────────────────────────────────
 
 export async function initCmd(targetDir?: string): Promise<void> {
   const root = resolve(targetDir ?? process.cwd());
@@ -103,70 +319,82 @@ export async function initCmd(targetDir?: string): Promise<void> {
       console.log(chalk.green('Created lat.md/'));
     }
 
-    // Step 2: AGENTS.md / CLAUDE.md
-    const agentsPath = join(root, 'AGENTS.md');
-    const claudePath = join(root, 'CLAUDE.md');
-    const hasAgents = existsSync(agentsPath);
-    const hasClaude = existsSync(claudePath);
+    // Step 2: Which coding agents do you use?
+    console.log('');
+    console.log(chalk.bold('Which coding agents do you use?'));
+    console.log('');
 
-    if (!hasAgents && !hasClaude) {
-      if (
-        await ask(
-          'Generate AGENTS.md and CLAUDE.md with lat.md instructions for coding agents?',
-        )
-      ) {
-        const template = readAgentsTemplate();
-        writeFileSync(agentsPath, template);
-        symlinkSync('AGENTS.md', claudePath);
-        console.log(chalk.green('Created AGENTS.md and CLAUDE.md → AGENTS.md'));
-      }
-    } else {
-      const existing = [hasAgents && 'AGENTS.md', hasClaude && 'CLAUDE.md']
-        .filter(Boolean)
-        .join(' and ');
+    const useClaudeCode = await ask('  Claude Code?');
+    const useCursor = await ask('  Cursor?');
+    const useCopilot = await ask('  VS Code Copilot?');
+    const useCodex = await ask('  Codex / OpenCode?');
+
+    const anySelected = useClaudeCode || useCursor || useCopilot || useCodex;
+
+    if (!anySelected) {
+      console.log('');
       console.log(
-        `\n${existing} already exists. Run ${chalk.cyan('lat gen agents.md')} to preview the template,` +
-          ` then incorporate its content or overwrite as needed.`,
+        chalk.dim('No agents selected. You can re-run') +
+          ' lat init ' +
+          chalk.dim('later.'),
+      );
+      return;
+    }
+
+    console.log('');
+    const template = readAgentsTemplate();
+
+    // Step 3: AGENTS.md (shared by non-Claude agents)
+    const needsAgentsMd = useCursor || useCopilot || useCodex;
+    if (needsAgentsMd) {
+      setupAgentsMd(root, template);
+    }
+
+    // Step 4: Per-agent setup
+    if (useClaudeCode) {
+      console.log('');
+      console.log(chalk.bold('Setting up Claude Code...'));
+      await setupClaudeCode(root, template);
+    }
+
+    if (useCursor) {
+      console.log('');
+      console.log(chalk.bold('Setting up Cursor...'));
+      await setupCursor(root);
+    }
+
+    if (useCopilot) {
+      console.log('');
+      console.log(chalk.bold('Setting up VS Code Copilot...'));
+      await setupCopilot(root);
+    }
+
+    if (useCodex) {
+      console.log('');
+      console.log(
+        chalk.bold('Codex / OpenCode') +
+          ' — uses AGENTS.md (already created). No additional setup needed.',
       );
     }
 
-    // Step 3: Claude Code prompt hook
-    const claudeDir = join(root, '.claude');
-    const hooksDir = join(claudeDir, 'hooks');
-    const hookPath = join(hooksDir, 'lat-prompt-hook.sh');
-    const settingsPath = join(claudeDir, 'settings.json');
+    console.log('');
+    console.log(
+      chalk.green('Done!') +
+        ' Run ' +
+        chalk.cyan('lat check') +
+        ' to validate your setup.',
+    );
 
-    if (hasLatHook(settingsPath)) {
-      console.log(chalk.green('Claude Code hook') + ' already configured');
-    } else {
+    if (!process.env.LAT_LLM_KEY) {
       console.log('');
       console.log(
-        chalk.bold('Claude Code hook') +
-          ' — adds a per-prompt reminder for the agent to consult lat.md',
+        chalk.yellow('Tip:') +
+          ' Set ' +
+          chalk.cyan('LAT_LLM_KEY') +
+          ' to enable semantic search (' +
+          chalk.dim('export LAT_LLM_KEY=sk-... or vck_...') +
+          ')',
       );
-      console.log(
-        chalk.dim(
-          '  Creates .claude/hooks/lat-prompt-hook.sh and registers it in .claude/settings.json',
-        ),
-      );
-      console.log(
-        chalk.dim(
-          '  On every prompt, the agent is instructed to run `lat search` and `lat prompt` before working.',
-        ),
-      );
-
-      if (await ask('Set up Claude Code prompt hook?')) {
-        mkdirSync(hooksDir, { recursive: true });
-        const templateHook = join(findTemplatesDir(), 'lat-prompt-hook.sh');
-        copyFileSync(templateHook, hookPath);
-        chmodSync(hookPath, 0o755);
-        addLatHook(settingsPath);
-        console.log(chalk.green('Created .claude/hooks/lat-prompt-hook.sh'));
-        console.log(
-          chalk.green('Updated .claude/settings.json') +
-            ' with UserPromptSubmit hook',
-        );
-      }
     }
   } finally {
     rl?.close();

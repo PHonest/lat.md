@@ -91,16 +91,57 @@ Implementation: `src/cli/gen.ts`
 
 ## init
 
-Interactive setup wizard. Walks the user through initializing lat.md in a project.
+Interactive setup wizard. Walks the user through initializing lat.md in a project, with per-agent configuration for multiple coding tools.
 
 Usage: `lat init [dir]`
 
 Steps:
 1. **lat.md/ directory** — if not present, asks whether to create it. Scaffolds from `templates/init/` (`.gitignore` and `README.md`). If it already exists, skips ahead.
-2. **AGENTS.md / CLAUDE.md** — if neither file exists, offers to generate both from the built-in template (same as [[cli#gen]]). If one or both already exist, suggests running `lat gen agents.md` to preview the template and incorporate manually.
-3. **Claude Code prompt hook** — installs a `UserPromptSubmit` hook that injects a per-prompt reminder for the agent to consult lat.md via `lat search` and `lat prompt` before working. Copies `templates/lat-prompt-hook.sh` to `.claude/hooks/` and registers it in `.claude/settings.json`. Idempotent — detects if the hook is already configured and skips.
+2. **Agent selection** — asks which coding agents the user uses (Claude Code, Cursor, VS Code Copilot, Codex/OpenCode). Each gets a Y/n prompt.
+3. **AGENTS.md** — created if a non-Claude agent is selected (Cursor, Copilot, Codex). Shared instruction file.
+4. **Per-agent setup** — configures each selected agent:
+
+### Claude Code
+
+- `CLAUDE.md` — written directly from the template (not a symlink)
+- `.claude/hooks/lat-prompt-hook.sh` — `UserPromptSubmit` hook that injects a per-prompt reminder to consult lat.md
+- [[cli#mcp]] server registered in `.mcp.json` at the project root (added to `.gitignore` since it contains absolute paths)
+
+### Cursor
+
+- `.cursor/rules/lat.md` — rules file generated from `templates/cursor-rules.md`, references MCP tools instead of CLI commands
+- [[cli#mcp]] server registered in `.cursor/mcp.json` (added to `.gitignore` since it contains absolute paths)
+
+### VS Code Copilot
+
+- `.github/copilot-instructions.md` — static instructions file
+- [[cli#mcp]] server registered in `.vscode/mcp.json`
+
+### Codex / OpenCode
+
+- Uses AGENTS.md only (no MCP support)
+
+All setup steps are idempotent — existing configuration is detected and skipped.
 
 Implementation: `src/cli/init.ts`
+
+## mcp
+
+Start the MCP (Model Context Protocol) server over stdio. Exposes lat.md tools to any MCP-capable coding agent (Claude Code, Cursor, VS Code Copilot).
+
+Usage: `lat mcp`
+
+Clients invoke this as `lat mcp`. The `lat init` wizard registers the MCP server using the absolute path to the current `lat` binary, so it works regardless of how `lat` was installed. The server exposes 5 tools:
+
+- **lat_locate** — find sections by name (wraps [[cli#locate]])
+- **lat_search** — semantic search across sections (wraps [[cli#search]])
+- **lat_prompt** — expand `[[refs]]` in text (wraps [[cli#prompt]])
+- **lat_check** — validate links and code refs (wraps [[cli#check]])
+- **lat_refs** — find references to a section (wraps [[cli#refs]])
+
+Uses `@modelcontextprotocol/sdk` with stdio transport. Resolves `lat.md/` from cwd. Returns plain text (no color).
+
+Implementation: `src/mcp/server.ts`
 
 ## search
 
