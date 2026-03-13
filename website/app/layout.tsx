@@ -29,8 +29,8 @@ export default function RootLayout({
       <body style={{ margin: 0, padding: 0, backgroundColor: '#000' }}>
         <style>{`
           body { line-height: 1.6; }
-          a.foot { color: #555; text-decoration: none; border-bottom: 1px dotted #555; transition: color 0.2s, border-bottom-color 0.2s; }
-          a.foot:hover { color: #aaa; border-bottom-color: #aaa; }
+          a.foot { color: #777; text-decoration: none; border-bottom: 1px dotted #777; transition: color 0.2s, border-bottom-color 0.2s; }
+          a.foot:hover { color: #ccc; border-bottom-color: #ccc; }
           ul li { padding-left: 2ch; text-indent: -2ch; }
           ul li + li { margin-top: 1em; }
           .nosel { -webkit-user-select: none; user-select: none; }

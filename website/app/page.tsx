@@ -12,8 +12,8 @@ function Cmd({ children }: { children: React.ReactNode }) {
   return (
     <span
       style={{
-        color: '#777',
-        background: '#1a1a1a',
+        color: '#aaa',
+        background: '#222',
         borderRadius: '4px',
         padding: '1px 5px',
         fontSize: '0.9em',
@@ -28,7 +28,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <div
       style={{
-        color: '#888',
+        color: '#bbb',
         fontSize: 12,
         textTransform: 'uppercase',
         letterSpacing: '0.15em',
@@ -67,7 +67,7 @@ export default function Home() {
           lineHeight: 1.2,
           letterSpacing: '0.05em',
           margin: 0,
-          color: '#aaa',
+          color: '#ddd',
         }}
       >
         {logo}
@@ -76,7 +76,7 @@ export default function Home() {
       {/* Tagline */}
       <p
         style={{
-          color: '#555',
+          color: '#888',
           fontSize: 18,
           textAlign: 'center',
           margin: 0,
@@ -101,7 +101,7 @@ export default function Home() {
               listStyle: 'none',
               fontSize: 14,
               lineHeight: 1.45,
-              color: '#555',
+              color: '#888',
             }}
           >
             <li>* Knowledge base (spec) that evolves in sync with your codebase</li>
@@ -118,26 +118,26 @@ export default function Home() {
           <code
             style={{
               display: 'block',
-              background: '#111',
-              border: '1px solid #222',
+              background: '#151515',
+              border: '1px solid #444',
               borderRadius: '6px',
               padding: '14px 48px 14px 16px',
               fontSize: 14,
-              color: '#aaa',
+              color: '#ddd',
               boxSizing: 'border-box',
             }}
           >
-            <span className="nosel" style={{ color: '#555' }}>$ </span>
+            <span className="nosel" style={{ color: '#888' }}>$ </span>
             npm i -g lat.md
           </code>
           <div
             style={{
-              color: '#444',
+              color: '#777',
               fontSize: 14,
               marginTop: '10px',
             }}
           >
-            then run <Cmd><span style={{ color: '#999' }}>lat init</span></Cmd> in your project
+            then run <Cmd><span style={{ color: '#ccc' }}>lat init</span></Cmd> in your project
           </div>
         </div>
 
@@ -151,7 +151,7 @@ export default function Home() {
               listStyle: 'none',
               fontSize: 14,
               lineHeight: 1.45,
-              color: '#555',
+              color: '#888',
             }}
           >
             <li>* Plain markdown: readable by humans, parseable by agents</li>
@@ -160,7 +160,7 @@ export default function Home() {
             <li>* <Cmd>lat check</Cmd> ensures nothing drifts out of sync</li>
             <li>* <Cmd>lat search</Cmd> for semantic vector search across all sections</li>
             <li style={{ marginTop: '1em' }}>
-              <span style={{ color: '#555' }}>Read the </span>
+              <span style={{ color: '#888' }}>Read the </span>
               <a
                 className="foot"
                 href="https://github.com/1st1/lat.md#readme"
@@ -181,12 +181,11 @@ export default function Home() {
           fontSize: 13,
         }}
       >
-        <span style={{ color: '#444' }}>Made by</span>
+        <span style={{ color: '#777' }}>Made by</span>
         <a className="foot" href="https://x.com/1st1">@1st1</a>
-        <span style={{ color: '#333' }}>|</span>
-        <span style={{ color: '#444' }}>open source on</span>
+        <span style={{ color: '#666' }}>|</span>
         <a className="foot" href="https://github.com/1st1/lat.md">GitHub</a>
-        <span style={{ color: '#333' }}>|</span>
+        <span style={{ color: '#666' }}>|</span>
         <a className="foot" href="https://www.npmjs.com/package/lat.md">npm</a>
       </div>
     </div>
