@@ -181,7 +181,6 @@ export default function Home() {
           fontSize: 13,
         }}
       >
-        <span style={{ color: '#777' }}>Made by</span>
         <a className="foot" href="https://x.com/1st1">@1st1</a>
         <span style={{ color: '#666' }}>|</span>
         <a className="foot" href="https://github.com/1st1/lat.md">GitHub</a>
