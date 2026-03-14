@@ -89,6 +89,12 @@ export async function searchCmd(
         ctx.projectRoot,
       ),
     );
+    console.log(
+      '\nTo navigate further:\n' +
+        '- `lat locate "Section Name"` — jump to a section by name\n' +
+        '- `lat refs "section#id"` — find what references a section\n' +
+        '- `lat search "new query"` — search for something else',
+    );
   } finally {
     await closeDb(db);
   }

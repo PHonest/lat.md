@@ -156,17 +156,19 @@ export async function startMcpServer(): Promise<void> {
           .filter((s): s is NonNullable<typeof s> => !!s)
           .map((s) => ({ section: s, reason: 'semantic match' }));
 
+        const text =
+          formatMatches(
+            `Search results for "${query}":`,
+            matched,
+            projectRoot,
+          ) +
+          '\n\nTo navigate further:\n' +
+          '- `lat_locate` — jump to a section by name\n' +
+          '- `lat_refs` — find what references a section\n' +
+          '- `lat_search` — search for something else';
+
         return {
-          content: [
-            {
-              type: 'text' as const,
-              text: formatMatches(
-                `Search results for "${query}":`,
-                matched,
-                projectRoot,
-              ),
-            },
-          ],
+          content: [{ type: 'text' as const, text }],
         };
       } finally {
         await closeDb(db);

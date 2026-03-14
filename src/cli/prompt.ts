@@ -20,16 +20,21 @@ type ResolvedRef = {
   alternatives: SectionMatch[];
 };
 
-export async function promptCmd(ctx: CliContext, text: string): Promise<void> {
-  const allSections = await loadAllSections(ctx.latDir);
-
+/**
+ * Resolve [[refs]] in text and return the expanded output.
+ * Returns null if there are no wiki links, or if resolution fails.
+ */
+export async function expandPrompt(
+  latDir: string,
+  projectRoot: string,
+  text: string,
+): Promise<string | null> {
   const refs = [...text.matchAll(WIKI_LINK_RE)];
-  if (refs.length === 0) {
-    process.stdout.write(text);
-    return;
-  }
+  if (refs.length === 0) return null;
 
+  const allSections = await loadAllSections(latDir);
   const resolved = new Map<string, ResolvedRef>();
+  const errors: string[] = [];
 
   for (const match of refs) {
     const target = match[1];
@@ -42,17 +47,12 @@ export async function promptCmd(ctx: CliContext, text: string): Promise<void> {
         best: matches[0],
         alternatives: matches.slice(1),
       });
-      continue;
+    } else {
+      errors.push(`No section found for [[${target}]]`);
     }
-
-    console.error(
-      ctx.chalk.red(
-        `No section found for [[${target}]] (no exact, substring, or fuzzy matches).`,
-      ),
-    );
-    console.error(ctx.chalk.dim('Ask the user to correct the reference.'));
-    process.exit(1);
   }
+
+  if (errors.length > 0) return null;
 
   // Replace [[refs]] inline
   let output = text.replace(WIKI_LINK_RE, (_match, target: string) => {
@@ -77,7 +77,7 @@ export async function promptCmd(ctx: CliContext, text: string): Promise<void> {
     for (const m of all) {
       const reason = isExact ? '' : ` (${m.reason})`;
       output += `  * [[${m.section.id}]]${reason}\n`;
-      output += `    * ${formatLocation(m.section, ctx.projectRoot)}\n`;
+      output += `    * ${formatLocation(m.section, projectRoot)}\n`;
       if (m.section.body) {
         output += `    * ${m.section.body}\n`;
       }
@@ -85,5 +85,37 @@ export async function promptCmd(ctx: CliContext, text: string): Promise<void> {
   }
   output += '</lat-context>\n';
 
-  process.stdout.write(output);
+  return output;
+}
+
+export async function promptCmd(ctx: CliContext, text: string): Promise<void> {
+  const result = await expandPrompt(ctx.latDir, ctx.projectRoot, text);
+
+  if (result === null) {
+    // Either no wiki links or resolution failed — check which
+    const refs = [...text.matchAll(WIKI_LINK_RE)];
+    if (refs.length === 0) {
+      process.stdout.write(text);
+      return;
+    }
+
+    // Resolution failed — re-run to produce error messages
+    const allSections = await loadAllSections(ctx.latDir);
+    for (const match of refs) {
+      const target = match[1];
+      const matches = findSections(allSections, target);
+      if (matches.length === 0) {
+        console.error(
+          ctx.chalk.red(
+            `No section found for [[${target}]] (no exact, substring, or fuzzy matches).`,
+          ),
+        );
+        console.error(ctx.chalk.dim('Ask the user to correct the reference.'));
+        process.exit(1);
+      }
+    }
+    return;
+  }
+
+  process.stdout.write(result);
 }

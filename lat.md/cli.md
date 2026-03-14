@@ -106,7 +106,7 @@ Steps:
 
 - `CLAUDE.md` — written directly from the template (not a symlink)
 - Two hooks registered in `.claude/settings.json`, both calling [[cli#hook]]:
-  - `UserPromptSubmit` → `lat hook claude UserPromptSubmit` — injects lat.md workflow reminders, detects `[[refs]]` in the prompt
+  - `UserPromptSubmit` → `lat hook claude UserPromptSubmit` — injects lat.md workflow reminders, auto-resolves `[[refs]]` in the prompt
   - `Stop` → `lat hook claude Stop` — reminds the agent to update `lat.md/` before finishing
 - `.claude` directory added to `.gitignore` (settings contain local absolute paths in hook commands)
 - [[cli#mcp]] server registered in `.mcp.json` at the project root (added to `.gitignore` since it contains absolute paths)
@@ -150,7 +150,7 @@ Currently supports `claude` agent with two events:
 
 ### UserPromptSubmit
 
-Reads the hook input from stdin (JSON with `user_prompt`). Outputs JSON with `additionalContext` that reminds the agent to consult `lat.md` before working. If the user prompt contains `[[refs]]`, adds an extra note telling the agent to run `lat prompt` first.
+Reads the hook input from stdin (JSON with `user_prompt`). Outputs JSON with `additionalContext` that reminds the agent to use `lat search`, `lat locate`, and `lat refs` for navigating the knowledge graph. If the user prompt contains `[[refs]]`, resolves them inline using [[src/cli/prompt.ts#expandPrompt]] and includes the expanded context directly — the agent never needs to run `lat prompt` itself.
 
 ### Stop
 
@@ -182,7 +182,7 @@ Semantic search across `lat.md` sections using vector embeddings.
 
 Usage: `lat search [query] [--limit=5] [--reindex]`
 
-Query is optional — `lat search --reindex` re-indexes without searching.
+Query is optional — `lat search --reindex` re-indexes without searching. Results include a navigation hint footer suggesting `lat locate`, `lat refs`, and `lat search` for further exploration — this makes the tools self-documenting so agents discover them organically.
 
 Implementation: [[src/cli/search.ts]], core logic in `src/search/`
 
