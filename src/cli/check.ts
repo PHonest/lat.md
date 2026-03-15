@@ -83,6 +83,8 @@ const SOURCE_EXTS = new Set([
   '.py',
   '.rs',
   '.go',
+  '.c',
+  '.h',
 ]);
 
 function isSourcePath(target: string): boolean {

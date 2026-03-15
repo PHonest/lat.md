@@ -881,6 +881,40 @@ describe('error-source-ref-go-missing', () => {
   });
 });
 
+describe('source-ref-c-valid', () => {
+  it('resolves C function, struct, enum, typedef, define, and variable refs without errors', async () => {
+    // docs.md links across .c and .h: greet (function), Greeter (struct),
+    // Color (enum), ErrorCode (typedef), MAX_SIZE (define), DEFAULT_NAME (variable)
+    const { errors } = await checkMd(latDir('source-ref-c-valid'));
+    expect(errors).toHaveLength(0);
+  });
+});
+
+describe('error-source-ref-c-missing', () => {
+  it('check md reports all missing C symbols', async () => {
+    const { errors } = await checkMd(latDir('error-source-ref-c-missing'));
+    expect(errors).toHaveLength(4);
+
+    const byTarget = new Map(errors.map((e) => [e.target, e]));
+
+    const fn = byTarget.get('src/app.c#nonexistent')!;
+    expect(fn).toBeDefined();
+    expect(fn.message).toContain('symbol "nonexistent" not found');
+
+    const st = byTarget.get('src/app.c#MissingStruct')!;
+    expect(st).toBeDefined();
+    expect(st.message).toContain('symbol "MissingStruct" not found');
+
+    const def = byTarget.get('src/app.c#MISSING_DEFINE')!;
+    expect(def).toBeDefined();
+    expect(def.message).toContain('symbol "MISSING_DEFINE" not found');
+
+    const v = byTarget.get('src/app.c#MISSING_VAR')!;
+    expect(v).toBeDefined();
+    expect(v.message).toContain('symbol "MISSING_VAR" not found');
+  });
+});
+
 // --- getSection ---
 
 describe('getSection', () => {

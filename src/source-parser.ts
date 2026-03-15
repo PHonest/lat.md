@@ -57,6 +57,8 @@ async function getLanguage(ext: string): Promise<Language | null> {
     '.py': 'tree-sitter-python.wasm',
     '.rs': 'tree-sitter-rust.wasm',
     '.go': 'tree-sitter-go.wasm',
+    '.c': 'tree-sitter-c.wasm',
+    '.h': 'tree-sitter-c.wasm',
   };
   const wasmFile = grammarMap[ext];
   if (!wasmFile) return null;
@@ -496,6 +498,150 @@ function extractGoSymbols(tree: Tree): SourceSymbol[] {
   return symbols;
 }
 
+/**
+ * Extract the declarator name from a C function_declarator node.
+ * Handles plain identifiers and pointer declarators (*name).
+ */
+function cFuncName(declarator: SyntaxNode): string | null {
+  if (declarator.type === 'function_declarator') {
+    const inner = declarator.childForFieldName('declarator');
+    if (!inner) return null;
+    if (inner.type === 'identifier') return inner.text;
+    if (inner.type === 'pointer_declarator') {
+      // *name — dig through pointer layers
+      let cur = inner;
+      while (cur.type === 'pointer_declarator') {
+        const child = cur.childForFieldName('declarator');
+        if (!child) return null;
+        cur = child;
+      }
+      return cur.type === 'identifier' ? cur.text : null;
+    }
+  }
+  return null;
+}
+
+/**
+ * Extract the variable name from a C init_declarator or plain declarator.
+ * Handles pointers like `*DEFAULT_NAME = "World"`.
+ */
+function cVarName(declarator: SyntaxNode): string | null {
+  let node = declarator;
+  // Unwrap init_declarator to get the declarator part
+  if (node.type === 'init_declarator') {
+    const inner = node.childForFieldName('declarator');
+    if (!inner) return null;
+    node = inner;
+  }
+  if (node.type === 'identifier') return node.text;
+  if (node.type === 'pointer_declarator') {
+    let cur = node;
+    while (cur.type === 'pointer_declarator') {
+      const child = cur.childForFieldName('declarator');
+      if (!child) return null;
+      cur = child;
+    }
+    return cur.type === 'identifier' ? cur.text : null;
+  }
+  return null;
+}
+
+function extractCSymbols(tree: Tree): SourceSymbol[] {
+  const symbols: SourceSymbol[] = [];
+  collectCNodes(tree.rootNode, symbols);
+  return symbols;
+}
+
+/**
+ * Walk C AST nodes, collecting symbols. Recurses into preproc_ifdef /
+ * preproc_ifndef blocks so header include guards don't hide declarations.
+ */
+function collectCNodes(parent: SyntaxNode, symbols: SourceSymbol[]): void {
+  for (let i = 0; i < parent.childCount; i++) {
+    const node = parent.child(i)!;
+    const startLine = node.startPosition.row + 1;
+    const endLine = node.endPosition.row + 1;
+
+    if (node.type === 'function_definition') {
+      const declarator = node.childForFieldName('declarator');
+      const name = declarator ? cFuncName(declarator) : null;
+      if (name) {
+        symbols.push({
+          name,
+          kind: 'function',
+          startLine,
+          endLine,
+          signature: firstLine(node.text),
+        });
+      }
+    } else if (node.type === 'struct_specifier') {
+      const name = extractName(node);
+      if (name) {
+        symbols.push({
+          name,
+          kind: 'class',
+          startLine,
+          endLine,
+          signature: firstLine(node.text),
+        });
+      }
+    } else if (node.type === 'enum_specifier') {
+      const name = extractName(node);
+      if (name) {
+        symbols.push({
+          name,
+          kind: 'class',
+          startLine,
+          endLine,
+          signature: firstLine(node.text),
+        });
+      }
+    } else if (node.type === 'type_definition') {
+      const declarator = node.childForFieldName('declarator');
+      const name =
+        declarator?.type === 'type_identifier' ? declarator.text : null;
+      if (name) {
+        symbols.push({
+          name,
+          kind: 'type',
+          startLine,
+          endLine,
+          signature: firstLine(node.text),
+        });
+      }
+    } else if (node.type === 'declaration') {
+      const declarator = node.childForFieldName('declarator');
+      const name = declarator ? cVarName(declarator) : null;
+      if (name) {
+        symbols.push({
+          name,
+          kind: 'variable',
+          startLine,
+          endLine,
+          signature: firstLine(node.text),
+        });
+      }
+    } else if (node.type === 'preproc_def') {
+      const name = extractName(node);
+      if (name) {
+        symbols.push({
+          name,
+          kind: 'const',
+          startLine,
+          endLine,
+          signature: firstLine(node.text),
+        });
+      }
+    } else if (
+      node.type === 'preproc_ifdef' ||
+      node.type === 'preproc_ifndef'
+    ) {
+      // Recurse into include guard / conditional blocks
+      collectCNodes(node, symbols);
+    }
+  }
+}
+
 function firstLine(text: string): string {
   const nl = text.indexOf('\n');
   return nl === -1 ? text : text.slice(0, nl);
@@ -522,6 +668,9 @@ export async function parseSourceSymbols(
   }
   if (ext === '.go') {
     return extractGoSymbols(tree);
+  }
+  if (ext === '.c' || ext === '.h') {
+    return extractCSymbols(tree);
   }
   return extractTsSymbols(tree);
 }
