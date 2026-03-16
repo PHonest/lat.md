@@ -91,10 +91,9 @@ async function handleUserPromptSubmit(): Promise<void> {
   const parts: string[] = [];
 
   parts.push(
-    'Before starting work on this task:',
-    '1. Use `lat search` and `lat section` to navigate the knowledge graph as needed.',
-    '2. After completing work, run `lat check` to validate all links and code refs.',
-    'Do not skip these steps.',
+    "Before starting work, run `lat search` with one or more queries describing the user's intent.",
+    'ALWAYS do this, even when the task seems straightforward — search results may reveal critical design details, protocols, or constraints.',
+    'Use `lat section` to read the full content of relevant matches.',
   );
 
   const latDir = findLatticeDir();

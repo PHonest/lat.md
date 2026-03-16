@@ -196,7 +196,7 @@ Currently supports `claude` agent with two events:
 
 Reads the hook input from stdin (JSON with `user_prompt`). Outputs JSON with `additionalContext` containing:
 
-1. Instructions to use `lat search`, `lat section`, `lat locate`, `lat refs` for navigation
+1. A directive to ALWAYS run `lat search` on the user's intent before starting work — even for seemingly straightforward tasks — because search may reveal critical design details, protocols, or constraints
 2. If the prompt contains `[[refs]]`, resolves them inline using [[src/cli/expand.ts#expandPrompt]]
 3. Runs [[src/cli/search.ts#runSearch]] on the user prompt, then [[src/cli/section.ts#getSection]] + [[src/cli/section.ts#formatSectionOutput]] on each result — the agent gets full section content with outgoing/incoming refs before it starts work. Gracefully degrades if no LLM key is configured.
 
