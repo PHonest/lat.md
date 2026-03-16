@@ -41,10 +41,6 @@ export function parseFrontmatter(content: string): LatFrontmatter {
   return result;
 }
 
-export function stripFrontmatter(content: string): string {
-  return content.replace(/^---\n[\s\S]*?\n---\n*/, '');
-}
-
 export function findLatticeDir(from?: string): string | null {
   let dir = resolve(from ?? process.cwd());
   while (true) {
@@ -101,7 +97,7 @@ export function parseSections(
   content: string,
   projectRoot?: string,
 ): Section[] {
-  const tree = parse(stripFrontmatter(content));
+  const tree = parse(content);
   const file = projectRoot
     ? relative(projectRoot, filePath).replace(/\.md$/, '')
     : basename(filePath, '.md');
@@ -621,7 +617,7 @@ export function extractRefs(
   content: string,
   projectRoot?: string,
 ): Ref[] {
-  const tree = parse(stripFrontmatter(content));
+  const tree = parse(content);
   const file = projectRoot
     ? relative(projectRoot, filePath).replace(/\.md$/, '')
     : basename(filePath, '.md');

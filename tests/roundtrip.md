@@ -1,3 +1,9 @@
+---
+lat:
+  require-code-mention: true
+title: Roundtrip Fixture
+---
+
 # Heading 1
 
 ## Heading 2

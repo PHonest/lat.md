@@ -23,10 +23,10 @@ Each section has:
 - `file` — project-root-relative file path without `.md` (e.g. `lat.md/dev-process`, `lat.md/tests/search`)
 - `filePath` — project-root-relative file path with extension (e.g. `lat.md/dev-process.md`, `src/config.ts`)
 - `children` — nested subsections forming a tree
-- `startLine` / `endLine` — source positions
+- `startLine` / `endLine` — source positions in the original file
 - `firstParagraph` — first paragraph text (used by [[cli#Section Preview]])
 
-[[markdown#Frontmatter]] is stripped before parsing.
+[[markdown#Frontmatter]] is handled by `remark-frontmatter`, which parses it as a `yaml` AST node so heading positions reflect the original file.
 
 ## Short Ref Resolution
 

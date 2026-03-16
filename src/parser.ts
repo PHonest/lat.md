@@ -1,6 +1,7 @@
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkStringify from 'remark-stringify';
+import remarkFrontmatter from 'remark-frontmatter';
 import type { Root } from 'mdast';
 import {
   wikiLinkSyntax,
@@ -10,6 +11,7 @@ import {
 
 const processor = unified()
   .use(remarkParse)
+  .use(remarkFrontmatter)
   .use(remarkStringify)
   .data('micromarkExtensions', [wikiLinkSyntax()])
   .data('fromMarkdownExtensions', [wikiLinkFromMarkdown()])
