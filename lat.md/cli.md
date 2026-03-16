@@ -138,14 +138,14 @@ Steps:
 3. **AGENTS.md** — created if a non-Claude agent is selected (Cursor, Copilot, Codex). Shared instruction file.
 4. **Per-agent setup** — configures each selected agent (see subsections below). Each step prints a brief explanation of *why* it's needed (e.g. why a hook is used instead of CLAUDE.md, why MCP is registered alongside CLI access).
 5. **LLM key setup** — checks for an existing key (env var or [[cli#Configuration File]]), and if missing, interactively prompts the user to paste one. Explains what semantic search is and why a key is needed before asking.
-6. **Version stamp + file hashes** — writes `INIT_VERSION` and SHA-256 hashes of all template-generated files to `lat.md/.cache/lat_init.json`. On re-run, compares current file content against stored hashes: unmodified files are silently updated to the latest template; user-modified files are skipped with a suggestion to run [[cli#gen]] to see the latest template.
+6. **Version stamp + file hashes** — writes `INIT_VERSION` and SHA-256 hashes of all template-generated files to `lat.md/.cache/lat_init.json`. On re-run, compares current file content against stored hashes: unmodified files are silently updated to the latest template; user-modified files trigger a Y/n prompt offering to overwrite with the latest template, declining suggests [[cli#gen]].
 
 ### Claude Code
 
 Sets up `CLAUDE.md` and two agent hooks for the Claude Code coding agent.
 
 - `CLAUDE.md` — written directly from the template (not a symlink)
-- Hooks synced in `.claude/settings.json` — on every run, all existing lat-owned hook entries (detected by `/\blat\b/` in the command string) are removed, then fresh entries are added for both events. This ensures hooks stay current across upgrades without duplicating or leaving stale entries. Non-lat hooks are preserved. Both hooks call [[cli#hook]]:
+- Hooks synced in `.claude/settings.json` — on every run, all existing lat-owned hook entries are removed, then fresh entries are added for both events. Detection uses two heuristics: `/\blat\b/` in the command string, or command starting with the current binary path (handles development installs where `lat` appears inside a longer path like `lattice/dist/...`). Non-lat hooks are preserved. Both hooks call [[cli#hook]]:
   - `UserPromptSubmit` → `lat hook claude UserPromptSubmit` — injects lat.md workflow reminders, auto-resolves `[[refs]]` in the prompt
   - `Stop` → `lat hook claude Stop` — reminds the agent to update `lat.md/` before finishing
 - `.claude` directory added to `.gitignore` (settings contain local absolute paths in hook commands)
