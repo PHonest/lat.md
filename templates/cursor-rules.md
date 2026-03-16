@@ -1,7 +1,7 @@
 # Before starting work
 
 - Use the `lat_search` tool to find sections relevant to your task. Read them to understand the design intent before writing code.
-- Use the `lat_prompt` tool on user prompts to expand any `[[refs]]` — this resolves section names to file locations and provides context.
+- Use the `lat_expand` tool on user prompts to expand any `[[refs]]` — this resolves section names to file locations and provides context.
 
 # Post-task checklist (REQUIRED — do not skip)
 
@@ -23,7 +23,7 @@ You have access to the following MCP tools from the `lat` server:
 
 - **lat_locate** — find a section by name (exact, fuzzy)
 - **lat_search** — semantic search across all sections
-- **lat_prompt** — expand `[[refs]]` in text to resolved locations
+- **lat_expand** — expand `[[refs]]` in text to resolved locations
 - **lat_check** — validate all wiki links and code refs
 - **lat_refs** — find what references a section
 

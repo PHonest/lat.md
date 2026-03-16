@@ -119,32 +119,49 @@ check
     handleResult(await checkIndexCommand(ctx));
   });
 
+async function runExpand(
+  text: string | undefined,
+  opts: { stdin?: boolean },
+): Promise<void> {
+  if (opts.stdin) {
+    const chunks: Buffer[] = [];
+    for await (const chunk of process.stdin) {
+      chunks.push(chunk);
+    }
+    text = Buffer.concat(chunks).toString('utf-8');
+  }
+  if (!text) {
+    console.error('Provide text as an argument or use --stdin');
+    process.exit(1);
+  }
+  const ctx = resolveContext(program.opts());
+  const { expandCommand } = await import('./expand.js');
+  const result = await expandCommand(ctx, text);
+  if (result.isError) {
+    console.error(result.output);
+    process.exit(1);
+  }
+  // Use stdout.write (no trailing newline) for piping
+  process.stdout.write(result.output);
+}
+
 program
-  .command('prompt')
-  .description('Expand [[refs]] in a prompt to lat.md section locations')
-  .argument('[text]', 'prompt text')
-  .option('--stdin', 'read prompt from stdin')
+  .command('expand')
+  .description('Expand [[refs]] in text to lat.md section locations')
+  .argument('[text]', 'text containing [[refs]]')
+  .option('--stdin', 'read text from stdin')
+  .action(runExpand);
+
+// Deprecated alias — hidden from --help
+program
+  .command('prompt', { hidden: true })
+  .argument('[text]')
+  .option('--stdin')
   .action(async (text: string | undefined, opts: { stdin?: boolean }) => {
-    if (opts.stdin) {
-      const chunks: Buffer[] = [];
-      for await (const chunk of process.stdin) {
-        chunks.push(chunk);
-      }
-      text = Buffer.concat(chunks).toString('utf-8');
-    }
-    if (!text) {
-      console.error('Provide prompt text as an argument or use --stdin');
-      process.exit(1);
-    }
-    const ctx = resolveContext(program.opts());
-    const { promptCommand } = await import('./prompt.js');
-    const result = await promptCommand(ctx, text);
-    if (result.isError) {
-      console.error(result.output);
-      process.exit(1);
-    }
-    // Use stdout.write (no trailing newline) for piping
-    process.stdout.write(result.output);
+    console.error(
+      'Warning: `lat prompt` is deprecated, use `lat expand` instead.',
+    );
+    await runExpand(text, opts);
   });
 
 program

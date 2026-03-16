@@ -277,14 +277,14 @@ describe('basic-project', () => {
   });
 });
 
-// --- prompt ---
+// --- expand ---
 
-describe('prompt', () => {
+describe('expand', () => {
   const root = caseDir('basic-project');
 
-  function runPrompt(text: string): string {
+  function runExpand(text: string): string {
     return execSync(
-      `node ${join(import.meta.dirname, '..', 'dist', 'src', 'cli', 'index.js')} prompt ${JSON.stringify(text)}`,
+      `node ${join(import.meta.dirname, '..', 'dist', 'src', 'cli', 'index.js')} expand ${JSON.stringify(text)}`,
       {
         cwd: root,
         encoding: 'utf-8',
@@ -293,9 +293,9 @@ describe('prompt', () => {
     );
   }
 
-  // @lat: [[tests/prompt#Resolves exact ref with context]]
+  // @lat: [[tests/expand#Resolves exact ref with context]]
   it('resolves exact ref with "is referring to" context', () => {
-    const output = runPrompt('see [[dev-process#Testing]]');
+    const output = runExpand('see [[dev-process#Testing]]');
     expect(output).toContain('see [[lat.md/dev-process#Dev Process#Testing]]');
     expect(output).toContain('<lat-context>');
     expect(output).toContain('`[[dev-process#Testing]]` is referring to:');
@@ -303,9 +303,9 @@ describe('prompt', () => {
     expect(output).toContain('dev-process.md:');
   });
 
-  // @lat: [[tests/prompt#Resolves fuzzy ref with alternatives]]
+  // @lat: [[tests/expand#Resolves fuzzy ref with alternatives]]
   it('resolves fuzzy ref with "might be referring to" context', () => {
-    const output = runPrompt('fix [[Runing Tests]]');
+    const output = runExpand('fix [[Runing Tests]]');
     expect(output).toContain(
       '[[lat.md/dev-process#Dev Process#Testing#Running Tests]]',
     );
@@ -313,9 +313,9 @@ describe('prompt', () => {
     expect(output).toContain('fuzzy match');
   });
 
-  // @lat: [[tests/prompt#Passes through text without refs]]
+  // @lat: [[tests/expand#Passes through text without refs]]
   it('passes through text without refs unchanged', () => {
-    const output = runPrompt('no refs here');
+    const output = runExpand('no refs here');
     expect(output).toBe('no refs here');
     expect(output).not.toContain('<lat-context>');
   });

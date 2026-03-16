@@ -2,7 +2,7 @@
 lat:
   require-code-mention: true
 ---
-# Prompt
+# Expand
 
 ## Resolves exact ref with context
 

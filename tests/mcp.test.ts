@@ -40,8 +40,8 @@ describe('mcp', () => {
     const names = tools.map((t) => t.name).sort();
     expect(names).toEqual([
       'lat_check',
+      'lat_expand',
       'lat_locate',
-      'lat_prompt',
       'lat_refs',
       'lat_search',
       'lat_section',
@@ -68,10 +68,10 @@ describe('mcp', () => {
     expect(text).toContain('No sections matching');
   });
 
-  // @lat: [[tests/mcp#lat_prompt expands refs]]
-  it('lat_prompt expands refs', async () => {
+  // @lat: [[tests/mcp#lat_expand expands refs]]
+  it('lat_expand expands refs', async () => {
     const result = await client.callTool({
-      name: 'lat_prompt',
+      name: 'lat_expand',
       arguments: { text: 'Tell me about [[dev-process#Testing]]' },
     });
     const text = (result.content as { type: string; text: string }[])[0].text;
@@ -79,10 +79,10 @@ describe('mcp', () => {
     expect(text).toContain('dev-process#Testing');
   });
 
-  // @lat: [[tests/mcp#lat_prompt passes through text without refs]]
-  it('lat_prompt passes through text without refs', async () => {
+  // @lat: [[tests/mcp#lat_expand passes through text without refs]]
+  it('lat_expand passes through text without refs', async () => {
     const result = await client.callTool({
-      name: 'lat_prompt',
+      name: 'lat_expand',
       arguments: { text: 'No refs here' },
     });
     const text = (result.content as { type: string; text: string }[])[0].text;

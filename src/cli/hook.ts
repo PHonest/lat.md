@@ -1,7 +1,7 @@
 import { dirname } from 'node:path';
 import { findLatticeDir } from '../lattice.js';
 import { plainStyler, type CmdContext } from '../context.js';
-import { expandPrompt } from './prompt.js';
+import { expandPrompt } from './expand.js';
 import { runSearch } from './search.js';
 import { getSection, formatSectionOutput } from './section.js';
 import { getLlmKey } from '../config.js';
@@ -120,7 +120,7 @@ async function handleUserPromptSubmit(): Promise<void> {
       } catch {
         parts.push(
           '',
-          'NOTE: The user prompt contains [[refs]] but resolution failed. Run `lat prompt` on the prompt text manually.',
+          'NOTE: The user prompt contains [[refs]] but resolution failed. Run `lat expand` on the prompt text manually.',
         );
       }
     }

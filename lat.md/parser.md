@@ -36,7 +36,7 @@ The root (h1) heading can be omitted in references: `[[backend#CORS]]` resolves 
 
 The file index ([[src/lattice.ts#buildFileIndex]]) maps all trailing path suffixes to their full paths. For `lat.md/guides/setup`, both `guides/setup` and `setup` are indexed. All keys are lowercase for case-insensitive lookup.
 
-Resolution is handled by [[src/lattice.ts#resolveRef]] for strict contexts (`lat check`, `lat refs`) where authored links must resolve unambiguously. Lenient contexts (`lat locate`, `lat prompt`) use [[src/lattice.ts#findSections]] directly, which has its own file stem expansion built in — it does not call `resolveRef`.
+Resolution is handled by [[src/lattice.ts#resolveRef]] for strict contexts (`lat check`, `lat refs`) where authored links must resolve unambiguously. Lenient contexts (`lat locate`, `lat expand`) use [[src/lattice.ts#findSections]] directly, which has its own file stem expansion built in — it does not call `resolveRef`.
 
 ## Refs Extraction
 

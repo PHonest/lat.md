@@ -53,7 +53,7 @@ Source code is parsed lazily with tree-sitter (via `web-tree-sitter`). Only file
 
 **Strict** — `lat check` and `lat refs` use `resolveRef()` directly. Links must resolve unambiguously to a known section. Ambiguous or broken links are errors.
 
-**Lenient** — `lat locate` and `lat prompt` use `findSections()`, which applies tiered matching (exact → file stem → subsection tail → fuzzy). These commands are for interactive exploration and accept approximate queries.
+**Lenient** — `lat locate` and `lat expand` use `findSections()`, which applies tiered matching (exact → file stem → subsection tail → fuzzy). These commands are for interactive exploration and accept approximate queries.
 
 ## Frontmatter
 

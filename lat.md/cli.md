@@ -79,11 +79,11 @@ Three checks:
 
 Directory walking uses [[dev-process#File Walking]] to respect `.gitignore` rules — hidden/ignored entries (`.cache`, `.obsidian`, etc.) are automatically excluded.
 
-## prompt
+## expand
 
-Expand `[[refs]]` in a prompt text to resolved `lat.md` section paths with location context. Designed for coding agents to pipe user prompts through before processing.
+Expand `[[refs]]` in text to resolved `lat.md` section paths with location context. Designed for coding agents to pipe user prompts through before processing. Renamed from `prompt` (which remains as a hidden deprecated alias).
 
-Usage: `lat prompt <text>` or `echo "text" | lat prompt`
+Usage: `lat expand <text>` or `echo "text" | lat expand`
 
 For each `[[ref]]` in the input, uses `findSections()` directly (no `resolveRef`):
 1. **Best match** — resolves to the top result from `findSections` (exact > file stem > subsection > subsequence > fuzzy)
@@ -91,7 +91,7 @@ For each `[[ref]]` in the input, uses `findSections()` directly (no `resolveRef`
 
 Output replaces `[[ref]]` with `[[resolved-id]]` inline and appends a `<lat-context>` block as a nested outliner. For exact matches: `is referring to:`. For non-exact: `might be referring to either of the following:` with all candidates, match reasons, locations, and body text.
 
-Implementation: [[src/cli/prompt.ts]]
+Implementation: [[src/cli/expand.ts]]
 
 ## gen
 
@@ -171,7 +171,7 @@ Currently supports `claude` agent with two events:
 Reads the hook input from stdin (JSON with `user_prompt`). Outputs JSON with `additionalContext` containing:
 
 1. Instructions to use `lat search`, `lat section`, `lat locate`, `lat refs` for navigation
-2. If the prompt contains `[[refs]]`, resolves them inline using [[src/cli/prompt.ts#expandPrompt]]
+2. If the prompt contains `[[refs]]`, resolves them inline using [[src/cli/expand.ts#expandPrompt]]
 3. Runs [[src/cli/search.ts#runSearch]] on the user prompt, then [[src/cli/section.ts#getSection]] + [[src/cli/section.ts#formatSectionOutput]] on each result — the agent gets full section content with outgoing/incoming refs before it starts work. Gracefully degrades if no LLM key is configured.
 
 ### Stop
@@ -186,12 +186,12 @@ Start the MCP (Model Context Protocol) server over stdio. Exposes lat.md tools t
 
 Usage: `lat mcp`
 
-Clients invoke this as `lat mcp`. The `lat init` wizard registers the MCP server using the absolute path to the current `lat` binary, so it works regardless of how `lat` was installed. The server exposes 6 tools:
+Clients invoke this as `lat mcp`. The `lat init` wizard registers the MCP server using the absolute path to the current `lat` binary, so it works regardless of how `lat` was installed. The server exposes six tools:
 
 - **lat_locate** — find sections by name (wraps [[cli#locate]])
 - **lat_section** — show section content with outgoing/incoming refs (wraps [[cli#section]])
 - **lat_search** — semantic search across sections (wraps [[cli#search]])
-- **lat_prompt** — expand `[[refs]]` in text (wraps [[cli#prompt]])
+- **lat_expand** — expand `[[refs]]` in text (wraps [[cli#expand]])
 - **lat_check** — validate links and code refs (wraps [[cli#check]])
 - **lat_refs** — find references to a section (wraps [[cli#refs]])
 

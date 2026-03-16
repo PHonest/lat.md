@@ -87,7 +87,7 @@ export async function expandPrompt(
   return output;
 }
 
-export async function promptCommand(
+export async function expandCommand(
   ctx: CmdContext,
   text: string,
 ): Promise<CmdResult> {

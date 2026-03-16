@@ -7,7 +7,7 @@ import { plainStyler, type CmdContext, type CmdResult } from '../context.js';
 import { locateCommand } from '../cli/locate.js';
 import { sectionCommand } from '../cli/section.js';
 import { searchCommand } from '../cli/search.js';
-import { promptCommand } from '../cli/prompt.js';
+import { expandCommand } from '../cli/expand.js';
 import { checkAllCommand } from '../cli/check.js';
 import { refsCommand, type Scope } from '../cli/refs.js';
 
@@ -67,10 +67,10 @@ export async function startMcpServer(): Promise<void> {
   );
 
   server.tool(
-    'lat_prompt',
+    'lat_expand',
     'Expand [[refs]] in text to resolved lat.md section paths with context',
     { text: z.string().describe('Text containing [[refs]] to expand') },
-    async ({ text: input }) => toMcp(await promptCommand(ctx, input)),
+    async ({ text: input }) => toMcp(await expandCommand(ctx, input)),
   );
 
   server.tool(

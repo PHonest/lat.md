@@ -9,7 +9,7 @@ Functional tests for the MCP server. Spawns `lat mcp` against the `basic-project
 Tests in `tests/mcp.test.ts`.
 
 ## Lists all tools
-Server exposes exactly `lat_check`, `lat_locate`, `lat_prompt`, `lat_refs`, `lat_search`, `lat_section`.
+Server exposes exactly `lat_check`, `lat_expand`, `lat_locate`, `lat_refs`, `lat_search`, `lat_section`.
 
 ## lat_locate finds a section
 Calling `lat_locate` with query `"Testing"` returns a result containing `dev-process#Testing`.
@@ -17,11 +17,11 @@ Calling `lat_locate` with query `"Testing"` returns a result containing `dev-pro
 ## lat_locate returns message for missing section
 Calling `lat_locate` with a nonexistent query returns a "No sections matching" message instead of erroring.
 
-## lat_prompt expands refs
-Calling `lat_prompt` with text containing `[[dev-process#Testing]]` returns expanded output with a `<lat-context>` block.
+## lat_expand expands refs
+Calling `lat_expand` with text containing `[[dev-process#Testing]]` returns expanded output with a `<lat-context>` block.
 
-## lat_prompt passes through text without refs
-Calling `lat_prompt` with plain text (no `[[refs]]`) returns the input unchanged.
+## lat_expand passes through text without refs
+Calling `lat_expand` with plain text (no `[[refs]]`) returns the input unchanged.
 
 ## lat_section shows section content
 
