@@ -21,6 +21,7 @@ import {
   writeConfig,
 } from '../config.js';
 import { writeInitMeta, readFileHash, contentHash } from '../init-version.js';
+import { selectMenu, type SelectOption } from './select-menu.js';
 
 async function confirm(
   rl: ReturnType<typeof createInterface>,
@@ -726,19 +727,56 @@ export async function initCmd(targetDir?: string): Promise<void> {
       console.log(chalk.green('Created lat.md/'));
     }
 
-    // Step 2: Which coding agents do you use?
-    console.log('');
-    console.log(chalk.bold('Which coding agents do you use?'));
+    // Step 2: Which coding agents do you use? (interactive select menu)
     console.log('');
 
-    const useClaudeCode = await ask('  Claude Code?');
-    const usePi = await ask('  Pi?');
-    const useCursor = await ask('  Cursor?');
-    const useCopilot = await ask('  VS Code Copilot?');
-    const useCodex = await ask('  Codex / OpenCode?');
+    const allAgents: SelectOption[] = [
+      { label: 'Claude Code', value: 'claude' },
+      { label: 'Pi', value: 'pi' },
+      { label: 'Cursor', value: 'cursor' },
+      { label: 'VS Code Copilot', value: 'copilot' },
+      { label: 'Codex / OpenCode', value: 'codex' },
+    ];
 
-    const anySelected =
-      useClaudeCode || usePi || useCursor || useCopilot || useCodex;
+    const selectedAgents: string[] = [];
+
+    // Iterative selection: pick agents one at a time until "done"
+    while (true) {
+      const remaining = allAgents.filter(
+        (a) => !selectedAgents.includes(a.value),
+      );
+      const options: SelectOption[] = [
+        {
+          label:
+            selectedAgents.length === 0
+              ? "I don't use any of these"
+              : 'This is it: exit',
+          value: '__done__',
+          accent: true,
+        },
+        ...remaining,
+      ];
+
+      const isFirst = selectedAgents.length === 0;
+      const choice = await selectMenu(
+        options,
+        isFirst ? 'Which coding agent do you use?' : 'Add another agent?',
+        isFirst ? 1 : 0,
+      );
+
+      if (!choice || choice === '__done__') break;
+      selectedAgents.push(choice);
+
+      if (remaining.length === 1) break; // all agents selected
+    }
+
+    const useClaudeCode = selectedAgents.includes('claude');
+    const usePi = selectedAgents.includes('pi');
+    const useCursor = selectedAgents.includes('cursor');
+    const useCopilot = selectedAgents.includes('copilot');
+    const useCodex = selectedAgents.includes('codex');
+
+    const anySelected = selectedAgents.length > 0;
 
     if (!anySelected) {
       console.log('');
