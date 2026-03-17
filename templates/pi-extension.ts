@@ -8,9 +8,7 @@ const LAT = "__LAT_BIN__";
 
 function run(args: string[], cwd?: string): string {
   const { execSync } = require("child_process") as typeof import("child_process");
-  // When LAT points to a .ts source file (dev install), run it through tsx.
-  const cmd = LAT.endsWith(".ts") ? `npx tsx ${LAT}` : LAT;
-  return execSync(`${cmd} ${args.join(" ")}`, {
+  return execSync(`${LAT} ${args.join(" ")}`, {
     cwd: cwd ?? process.cwd(),
     encoding: "utf-8",
     timeout: 30_000,
@@ -185,7 +183,12 @@ export default function (pi: ExtensionAPI) {
 
   // ── Lifecycle hooks ────────────────────────────────────────────────
 
+  // Guard to prevent agent_end from firing twice per prompt (infinite loop)
+  let agentEndFired = false;
+
   pi.on("before_agent_start", async () => {
+    agentEndFired = false;
+
     const reminder = [
       "Before starting work, run `lat_search` with one or more queries describing the user's intent.",
       "ALWAYS do this, even when the task seems straightforward — search results may reveal critical design details, protocols, or constraints.",
@@ -205,6 +208,10 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.on("agent_end", async () => {
+    // Don't fire twice per prompt — prevents infinite loop
+    if (agentEndFired) return;
+    agentEndFired = true;
+
     // Run lat check
     let checkOutput: string;
     let checkFailed = false;

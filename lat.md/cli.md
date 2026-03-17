@@ -122,6 +122,7 @@ Supported targets:
 - `agents.md` — generate an `AGENTS.md` with instructions for coding agents on how to use `lat.md` in the project
 - `claude.md` — alias for `agents.md`
 - `cursor-rules.md` — generate Cursor rules for `.cursor/rules/lat.md`
+- `pi-extension.ts` — generate the Pi extension template (tools + lifecycle hooks)
 
 Output is written to stdout so it can be redirected: `lat gen agents.md > AGENTS.md`.
 
@@ -146,7 +147,7 @@ Steps:
 Sets up `CLAUDE.md` and two agent hooks for the Claude Code coding agent.
 
 - `CLAUDE.md` — written directly from the template (not a symlink)
-- Hooks synced in `.claude/settings.json` — on every run, all existing lat-owned hook entries are removed, then fresh entries are added for both events. Detection uses two heuristics: `/\blat\b/` in the command string, or command starting with the current binary path (handles development installs where `lat` appears inside a longer path like `lattice/dist/...`). Non-lat hooks are preserved. Both hooks call [[cli#hook]]:
+- Hooks synced in `.claude/settings.json` — on every run, all existing lat-owned hook entries are removed, then fresh entries are added for both events. Detection uses three heuristics: `/\blat\b/` in the command string, `hook claude ` substring (catches any install path), or command starting with the current binary path. Non-lat hooks are preserved. Both hooks call [[cli#hook]]:
   - `UserPromptSubmit` → `lat hook claude UserPromptSubmit` — injects lat.md workflow reminders, auto-resolves `[[refs]]` in the prompt
   - `Stop` → `lat hook claude Stop` — reminds the agent to update `lat.md/` before finishing
 - `.claude` directory added to `.gitignore` (settings contain local absolute paths in hook commands)
@@ -157,7 +158,7 @@ Sets up `CLAUDE.md` and two agent hooks for the Claude Code coding agent.
 Sets up a Pi extension that registers lat tools as native Pi tools and hooks into the agent lifecycle.
 
 - `AGENTS.md` — shared instruction file (created in the shared step)
-- `.pi/extensions/lat.ts` — TypeScript extension generated from `templates/pi-extension.ts` with the absolute path to the `lat` binary injected. When the path points to a `.ts` source file (dev install), the `run()` helper automatically prefixes commands with `npx tsx` so Node can resolve TypeScript imports. Registers six tools (`lat_search`, `lat_section`, `lat_locate`, `lat_check`, `lat_expand`, `lat_refs`) that shell out to the `lat` CLI. Registers custom message renderers for `lat-reminder` and `lat-check` that show a collapsed one-liner by default and expand to full content on Ctrl+O (`expandTools` keybinding). Hooks into `before_agent_start` (injects a visible search reminder via `customType` message with `display: true`) and `agent_end` (runs `lat check` + diff analysis, sends a visible follow-up message if something needs fixing).
+- `.pi/extensions/lat.ts` — TypeScript extension generated from `templates/pi-extension.ts` with the full invocation command injected. `resolveLatBin()` in `init.ts` reconstructs exactly how the process was started: for compiled binaries it's just the binary path; for `.ts` source files run via tsx it captures `node <execArgv> <script>` so the same loader flags are replayed. Registers six tools (`lat_search`, `lat_section`, `lat_locate`, `lat_check`, `lat_expand`, `lat_refs`) that shell out to the `lat` CLI. Registers custom message renderers for `lat-reminder` and `lat-check` that show a collapsed one-liner by default and expand to full content on Ctrl+O (`expandTools` keybinding). Hooks into `before_agent_start` (injects a visible search reminder via `customType` message with `display: true`) and `agent_end` (runs `lat check` + diff analysis, sends a visible follow-up message if something needs fixing).
 - `.pi` directory added to `.gitignore` (extension contains local absolute paths)
 
 ### Cursor
@@ -217,8 +218,8 @@ Conditionally blocks the agent from stopping — only when something is actually
 1. **No `lat.md/` dir** — exit silently.
 2. **Run `lat check`** — always, on both first and second pass.
 3. **Second pass** (`stop_hook_active` true) — if check still fails, print warning to stderr (no block, loop stops). If check passes, exit silently.
-4. **First pass** — run `git diff HEAD --numstat`. Count `codeLines` (files matching [[src/source-parser.ts#SOURCE_EXTENSIONS]]) and `latMdLines`. If `codeLines < 5`, skip ratio check. Otherwise round `latMdLines` up to 1 (if nonzero) and flag `needsSync` when `latMdLines < codeLines * 5%`.
-5. **Decision** — both pass: exit silently, clean output. Check failed + needs sync: block ("update `lat.md/`, then run `lat check` until it passes"). Check failed only: block ("run `lat check` until it passes"). Needs sync only: block ("update `lat.md/`, run `lat check` at the end").
+4. **First pass** — run `git diff HEAD --numstat`. Count `codeLines` (files matching [[src/source-parser.ts#SOURCE_EXTENSIONS]]) and `latMdLines`. Skip ratio check if `codeLines < 5` or `latMdLines >= 50` (enough doc work was clearly done). Otherwise round `latMdLines` up to 1 (if nonzero) and flag `needsSync` when `latMdLines < codeLines * 5%`.
+5. **Decision** — both pass: exit silently, clean output. Check failed + needs sync: block ("update `lat.md/`, then run `lat check` until it passes"). Check failed only: block ("run `lat check` until it passes"). Needs sync only: block with explicit context ("not updated" when 0 lat.md lines, "may not be fully in sync (N lines)" when some changes exist but below ratio).
 
 Implementation: [[src/cli/hook.ts]]
 

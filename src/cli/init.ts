@@ -55,11 +55,67 @@ async function prompt(
   }
 }
 
+// ── Binary resolution ────────────────────────────────────────────────
+
+/**
+ * Return the loader-related flags from `process.execArgv`, stripping
+ * `--eval`/`-e`/`--print`/`-p` and their value arguments (those only
+ * appear when the process was started with `node -e`/`-p`).
+ */
+function loaderExecArgs(): string[] {
+  const raw = process.execArgv;
+  const args: string[] = [];
+  for (let i = 0; i < raw.length; i++) {
+    if (
+      raw[i] === '--eval' ||
+      raw[i] === '-e' ||
+      raw[i] === '--print' ||
+      raw[i] === '-p'
+    ) {
+      i++; // skip the value argument
+    } else {
+      args.push(raw[i]);
+    }
+  }
+  return args;
+}
+
+/**
+ * Reconstruct the command prefix used to invoke this process.
+ *
+ * When running via a compiled JS entry point (e.g. the global `lat` binary),
+ * `process.argv[1]` is enough (e.g. `/usr/local/bin/lat`).
+ *
+ * When running via a TypeScript loader like tsx, the script itself can't be
+ * executed directly — we need to replay the same node flags that loaded tsx.
+ * We detect this by checking `process.execArgv` for tsx's `--import` loader
+ * and reconstruct: `node <execArgv...> <script>`.
+ */
+function resolveLatBin(): string {
+  const script = resolve(process.argv[1]);
+
+  // Not a .ts file — compiled JS or a wrapper script, use as-is.
+  if (!script.endsWith('.ts')) return script;
+
+  // Running a .ts file: reconstruct `node <execArgv> <script>` so the
+  // same loader (tsx, ts-node, etc.) is used when the command is replayed.
+  const node = process.argv[0];
+  const execArgs = loaderExecArgs();
+  if (execArgs.length > 0) {
+    return [node, ...execArgs, script]
+      .map((a) => (a.includes(' ') ? `"${a}"` : a))
+      .join(' ');
+  }
+
+  // .ts file but no special loader flags — best-effort, just return the path
+  return script;
+}
+
 // ── Claude Code helpers ──────────────────────────────────────────────
 
 /** Derive the hook command prefix from the currently running binary. */
 function latHookCommand(event: string): string {
-  return `${resolve(process.argv[1])} hook claude ${event}`;
+  return `${resolveLatBin()} hook claude ${event}`;
 }
 
 type HookEntry = { hooks?: { type?: string; command?: string }[] };
@@ -71,7 +127,9 @@ function isLatHookEntry(entry: HookEntry): boolean {
     entry.hooks?.some(
       (h) =>
         typeof h.command === 'string' &&
-        (/\blat\b/.test(h.command) || h.command.startsWith(bin + ' ')),
+        (/\blat\b/.test(h.command) ||
+          h.command.includes('hook claude ') ||
+          h.command.startsWith(bin + ' ')),
     ) ?? false
   );
 }
@@ -162,10 +220,32 @@ function ensureGitignored(root: string, entry: string): void {
  * Derive the MCP server command from the currently running binary.
  * If `lat init` was invoked as `/path/to/lat`, we emit
  * `{ command: "/path/to/lat", args: ["mcp"] }` so the MCP client
- * starts the same binary.
+ * starts the same binary. When running via tsx, emits
+ * `{ command: "node", args: ["--import", "tsx/loader", ..., "script.ts", "mcp"] }`.
  */
 function mcpCommand(): { command: string; args: string[] } {
-  return { command: resolve(process.argv[1]), args: ['mcp'] };
+  const script = resolve(process.argv[1]);
+  if (!script.endsWith('.ts')) {
+    return { command: script, args: ['mcp'] };
+  }
+  const raw = process.execArgv;
+  const execArgs: string[] = [];
+  for (let i = 0; i < raw.length; i++) {
+    if (
+      raw[i] === '--eval' ||
+      raw[i] === '-e' ||
+      raw[i] === '--print' ||
+      raw[i] === '-p'
+    ) {
+      i++;
+    } else {
+      execArgs.push(raw[i]);
+    }
+  }
+  if (execArgs.length > 0) {
+    return { command: process.argv[0], args: [...execArgs, script, 'mcp'] };
+  }
+  return { command: script, args: ['mcp'] };
 }
 
 // ── MCP config helpers ───────────────────────────────────────────────
@@ -477,7 +557,7 @@ async function setupPi(
 
   const template = readPiExtensionTemplate().replace(
     '__LAT_BIN__',
-    resolve(process.argv[1]),
+    resolveLatBin(),
   );
 
   const hash = await writeTemplateFile(

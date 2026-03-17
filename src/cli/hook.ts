@@ -151,6 +151,9 @@ const DIFF_THRESHOLD = 5;
 /** lat.md/ changes below this ratio of code changes trigger a sync reminder. */
 const LATMD_RATIO = 0.05;
 
+/** If lat.md/ changes exceed this many lines, skip the ratio check entirely. */
+const LATMD_UPPER_THRESHOLD = 50;
+
 /** Run `git diff --numstat` and return { codeLines, latMdLines }. */
 function analyzeDiff(projectRoot: string): {
   codeLines: number;
@@ -228,9 +231,8 @@ async function handleStop(): Promise<void> {
   // Analyze git diff — flag when lat.md/ changes are < 5% of code changes
   const { codeLines, latMdLines } = analyzeDiff(projectRoot);
   let needsSync = false;
-  if (codeLines >= DIFF_THRESHOLD) {
-    // Round up lat.md lines to 1 if there are more than 5 code lines changed
-    // (a tiny lat.md touch still counts as effort)
+  if (codeLines >= DIFF_THRESHOLD && latMdLines < LATMD_UPPER_THRESHOLD) {
+    // Round up lat.md lines to 1 if nonzero (a tiny touch still counts)
     const effectiveLatMd = latMdLines === 0 ? 0 : Math.max(latMdLines, 1);
     needsSync = effectiveLatMd < codeLines * LATMD_RATIO;
   }
@@ -240,11 +242,20 @@ async function handleStop(): Promise<void> {
 
   const parts: string[] = [];
 
+  const syncMsg =
+    latMdLines === 0
+      ? 'The codebase has changes (' +
+        codeLines +
+        ' lines) but `lat.md/` was not updated.'
+      : 'The codebase has changes (' +
+        codeLines +
+        ' lines) but `lat.md/` may not be fully in sync (' +
+        latMdLines +
+        ' lines changed).';
+
   if (checkFailed && needsSync) {
     parts.push(
-      '`lat check` found errors AND the codebase has changes (' +
-        codeLines +
-        ' lines) with no updates to `lat.md/`. Before finishing:',
+      '`lat check` found errors. ' + syncMsg + ' Before finishing:',
       '',
       '1. Update `lat.md/` to reflect your code changes — run `lat search` to find relevant sections.',
       '2. Run `lat check` until it passes.',
@@ -257,9 +268,8 @@ async function handleStop(): Promise<void> {
     );
   } else {
     parts.push(
-      'The codebase has changes (' +
-        codeLines +
-        ' lines) but `lat.md/` was not updated. Update `lat.md/` to be in sync with the changes — run `lat search` to find relevant sections. Run `lat check` at the end.',
+      syncMsg +
+        ' Verify `lat.md/` is in sync — run `lat search` to find relevant sections. Run `lat check` at the end.',
     );
   }
 
