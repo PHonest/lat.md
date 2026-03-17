@@ -70,9 +70,14 @@ const broken = join(casesDir, 'error-broken-links');
 describe('hook stop', () => {
   // @lat: [[tests/hook#Exits silently when check passes and no diff]]
   it('exits silently when check passes and no diff', () => {
-    const { stdout, stderr } = runStopHook(clean);
-    expect(stdout).toBe('');
-    expect(stderr).toBe('');
+    const fakeBinDir = makeFakeGitDir('');
+    try {
+      const { stdout, stderr } = runStopHook(clean, { fakeBinDir });
+      expect(stdout).toBe('');
+      expect(stderr).toBe('');
+    } finally {
+      rmSync(fakeBinDir, { recursive: true });
+    }
   });
 
   // @lat: [[tests/hook#Blocks when lat check fails]]

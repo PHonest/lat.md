@@ -4,3 +4,4 @@ dist
 .mcp.json
 .cursor/mcp.json
 .claude
+.pi

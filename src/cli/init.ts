@@ -9,7 +9,11 @@ import { join, resolve } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import chalk from 'chalk';
 import { findTemplatesDir } from './templates.js';
-import { readAgentsTemplate, readCursorRulesTemplate } from './gen.js';
+import {
+  readAgentsTemplate,
+  readCursorRulesTemplate,
+  readPiExtensionTemplate,
+} from './gen.js';
 import {
   getLlmKey,
   getConfigPath,
@@ -449,6 +453,49 @@ async function setupCopilot(
   }
 }
 
+async function setupPi(
+  root: string,
+  latDir: string,
+  hashes: Record<string, string>,
+  ask: (message: string) => Promise<boolean>,
+): Promise<void> {
+  // AGENTS.md — Pi reads this natively
+  // (already created in the shared step if any non-Claude agent is selected)
+
+  // .pi/extensions/lat.ts — extension that registers tools + lifecycle hooks
+  console.log('');
+  console.log(
+    chalk.dim(
+      '  The Pi extension registers lat tools and hooks into the agent lifecycle',
+    ),
+  );
+  console.log(
+    chalk.dim(
+      '  to inject search context and validate lat.md/ before finishing.',
+    ),
+  );
+
+  const template = readPiExtensionTemplate().replace(
+    '__LAT_BIN__',
+    resolve(process.argv[1]),
+  );
+
+  const hash = await writeTemplateFile(
+    root,
+    latDir,
+    '.pi/extensions/lat.ts',
+    template,
+    'pi-extension.ts',
+    'Extension (.pi/extensions/lat.ts)',
+    '  ',
+    ask,
+  );
+  if (hash) hashes['.pi/extensions/lat.ts'] = hash;
+
+  // Ensure .pi is gitignored (extension contains local absolute paths)
+  ensureGitignored(root, '.pi');
+}
+
 // ── LLM key setup ───────────────────────────────────────────────────
 
 async function setupLlmKey(
@@ -605,11 +652,13 @@ export async function initCmd(targetDir?: string): Promise<void> {
     console.log('');
 
     const useClaudeCode = await ask('  Claude Code?');
+    const usePi = await ask('  Pi?');
     const useCursor = await ask('  Cursor?');
     const useCopilot = await ask('  VS Code Copilot?');
     const useCodex = await ask('  Codex / OpenCode?');
 
-    const anySelected = useClaudeCode || useCursor || useCopilot || useCodex;
+    const anySelected =
+      useClaudeCode || usePi || useCursor || useCopilot || useCodex;
 
     if (!anySelected) {
       console.log('');
@@ -626,7 +675,7 @@ export async function initCmd(targetDir?: string): Promise<void> {
     const fileHashes: Record<string, string> = {};
 
     // Step 3: AGENTS.md (shared by non-Claude agents)
-    const needsAgentsMd = useCursor || useCopilot || useCodex;
+    const needsAgentsMd = usePi || useCursor || useCopilot || useCodex;
     if (needsAgentsMd) {
       await setupAgentsMd(root, latDir, template, fileHashes, ask);
     }
@@ -636,6 +685,12 @@ export async function initCmd(targetDir?: string): Promise<void> {
       console.log('');
       console.log(chalk.bold('Setting up Claude Code...'));
       await setupClaudeCode(root, latDir, template, fileHashes, ask);
+    }
+
+    if (usePi) {
+      console.log('');
+      console.log(chalk.bold('Setting up Pi...'));
+      await setupPi(root, latDir, fileHashes, ask);
     }
 
     if (useCursor) {
