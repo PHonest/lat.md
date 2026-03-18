@@ -197,7 +197,7 @@ export default function Home() {
               const versionColor = `rgb(${vc}, ${vc}, ${vc})`
               return (
                 <li key={v} style={{ display: 'flex', gap: '1.5ch', paddingLeft: 0, textIndent: 0, color: textColor }}>
-                  <span style={{ color: versionColor, flexShrink: 0 }}>{v}</span>
+                  <span style={{ color: versionColor, flexShrink: 0, minWidth: '4ch', textAlign: 'right' }}>{v}</span>
                   <span>{text}</span>
                 </li>
               )
