@@ -703,9 +703,12 @@ export async function initCmd(targetDir?: string): Promise<void> {
   const latDir = join(root, 'lat.md');
 
   const interactive = process.stdin.isTTY ?? false;
-  const rl = interactive
-    ? createInterface({ input: process.stdin, output: process.stdout })
-    : null;
+
+  // Readline is created AFTER the selectMenu loop below.
+  // selectMenu puts stdin into raw mode with its own 'data' listener;
+  // if readline is already attached it receives those raw keypresses,
+  // corrupting its internal state and causing rl.question() to hang/exit.
+  let rl: ReturnType<typeof createInterface> | null = null;
 
   const ask = async (message: string): Promise<boolean> => {
     if (!rl) return true;
@@ -717,9 +720,20 @@ export async function initCmd(targetDir?: string): Promise<void> {
     if (existsSync(latDir)) {
       console.log(chalk.green('lat.md/') + ' already exists');
     } else {
-      if (!(await ask('Create lat.md/ directory?'))) {
-        console.log('Aborted.');
-        return;
+      // No rl yet — selectMenu hasn't run, so use a one-off confirm
+      if (interactive) {
+        const tmpRl = createInterface({
+          input: process.stdin,
+          output: process.stdout,
+        });
+        try {
+          if (!(await confirm(tmpRl, 'Create lat.md/ directory?'))) {
+            console.log('Aborted.');
+            return;
+          }
+        } finally {
+          tmpRl.close();
+        }
       }
       const templateDir = join(findTemplatesDir(), 'init');
       mkdirSync(latDir, { recursive: true });
@@ -777,6 +791,15 @@ export async function initCmd(targetDir?: string): Promise<void> {
     const useCodex = selectedAgents.includes('codex');
 
     const anySelected = selectedAgents.length > 0;
+
+    // Now that selectMenu is done, it's safe to create the readline interface.
+    // selectMenu has restored stdin to its original state (paused, non-raw).
+    if (interactive) {
+      rl = createInterface({
+        input: process.stdin,
+        output: process.stdout,
+      });
+    }
 
     if (!anySelected) {
       console.log('');

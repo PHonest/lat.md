@@ -135,8 +135,8 @@ Interactive setup wizard. Walks the user through initializing lat.md in a projec
 Usage: `lat init [dir]`
 
 Steps:
-1. **lat.md/ directory** — if not present, asks whether to create it. Scaffolds from `templates/init/` (`.gitignore` and `README.md`). If it already exists, skips ahead.
-2. **Agent selection** — interactive arrow-key select menu ([[src/cli/select-menu.ts#selectMenu]]). Users pick agents one at a time; after each selection, the menu reappears without that agent and with a "This is it" option (green accent highlight) at the top. On the first prompt the cursor defaults to the first agent; on subsequent prompts it defaults to "This is it". Supports up/down arrows, j/k, Enter to confirm, Ctrl+C to abort.
+1. **lat.md/ directory** — if not present, asks whether to create it (via a one-off readline interface that is closed before step 2). Scaffolds from `templates/init/` (`.gitignore` and `README.md`). If it already exists, skips ahead.
+2. **Agent selection** — interactive arrow-key select menu ([[src/cli/select-menu.ts#selectMenu]]). Users pick agents one at a time; after each selection, the menu reappears without that agent and with a "This is it" option (green accent highlight) at the top. On the first prompt the cursor defaults to the first agent; on subsequent prompts it defaults to "This is it". Supports up/down arrows, j/k, Enter to confirm, Ctrl+C to abort. **Important:** the persistent readline interface is created *after* this step — `selectMenu` puts stdin into raw mode with its own `data` listener, which corrupts any co-existing readline interface.
 3. **AGENTS.md** — created if a non-Claude agent is selected (Cursor, Copilot, Codex). Shared instruction file.
 4. **Per-agent setup** — configures each selected agent (see subsections below). Each step prints a brief explanation of *why* it's needed (e.g. why a hook is used instead of CLAUDE.md, why MCP is registered alongside CLI access).
 5. **LLM key setup** — checks for an existing key (env var or [[cli#Configuration File]]), and if missing, interactively prompts the user to paste one. Explains what semantic search is and why a key is needed before asking.
