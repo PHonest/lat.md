@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { extname, join } from 'node:path';
+import { extname, join, relative } from 'node:path';
 import {
   listLatticeFiles,
   loadAllSections,
@@ -160,7 +160,11 @@ async function findSourceRefs(
         ? targetLower === fileLower || targetLower.startsWith(fileLower + '#')
         : targetLower === queryLower;
       if (matches) {
-        codeRefs.push(`${ref.file}:${ref.line}`);
+        const displayPath = relative(
+          process.cwd(),
+          join(projectRoot, ref.file),
+        );
+        codeRefs.push(`${displayPath}:${ref.line}`);
       }
     }
   }
@@ -254,7 +258,11 @@ export async function findRefs(
         fileIndex,
       );
       if (codeResolved.toLowerCase() === targetId) {
-        codeRefs.push(`${ref.file}:${ref.line}`);
+        const displayPath = relative(
+          process.cwd(),
+          join(ctx.projectRoot, ref.file),
+        );
+        codeRefs.push(`${displayPath}:${ref.line}`);
       }
     }
   }

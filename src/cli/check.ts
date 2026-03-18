@@ -200,16 +200,17 @@ export async function checkCodeRefs(latticeDir: string): Promise<CheckResult> {
       fileIndex,
     );
     mentionedSections.add(resolved.toLowerCase());
+    const displayPath = relative(process.cwd(), join(projectRoot, ref.file));
     if (ambiguous) {
       errors.push({
-        file: ref.file,
+        file: displayPath,
         line: ref.line,
         target: ref.target,
         message: ambiguousMessage(ref.target, ambiguous, suggested),
       });
     } else if (!sectionIds.has(resolved.toLowerCase())) {
       errors.push({
-        file: ref.file,
+        file: displayPath,
         line: ref.line,
         target: ref.target,
         message: `@lat: [[${ref.target}]] — no matching section found`,

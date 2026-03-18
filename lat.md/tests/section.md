@@ -37,4 +37,4 @@ Verifies that `formatSectionOutput` correctly renders the "Referenced by" block 
 
 ## formatSectionOutput includes all parts
 
-`formatSectionOutput` produces styled output (via `Styler`) containing the section id, location, raw content, "This section references" with outgoing ref ids, and "Referenced by" with incoming ref ids.
+`formatSectionOutput` produces styled output containing section id, location, raw content, "This section references" with outgoing refs, "Referenced by" with incoming refs, and "Referenced by code" with `@lat:` back-references.

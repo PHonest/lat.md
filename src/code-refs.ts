@@ -202,14 +202,11 @@ function parseGrepOutput(
     // Strip leading ./ from path
     if (filePath.startsWith('./')) filePath = filePath.slice(2);
 
-    const absFile = join(projectRoot, filePath);
-    const relFile = relative(process.cwd(), absFile);
-
     // Extract targets using the same regex as the TS fallback
     LAT_REF_RE.lastIndex = 0;
     let match;
     while ((match = LAT_REF_RE.exec(content)) !== null) {
-      refs.push({ target: match[1], file: relFile, line: lineNum });
+      refs.push({ target: match[1], file: filePath, line: lineNum });
     }
   }
 
@@ -219,7 +216,10 @@ function parseGrepOutput(
 /**
  * TypeScript fallback: read every file and scan for @lat refs.
  */
-async function scanWithTs(files: string[]): Promise<CodeRef[]> {
+async function scanWithTs(
+  files: string[],
+  projectRoot: string,
+): Promise<CodeRef[]> {
   const refs: CodeRef[] = [];
 
   for (const file of files) {
@@ -239,7 +239,7 @@ async function scanWithTs(files: string[]): Promise<CodeRef[]> {
       while ((match = LAT_REF_RE.exec(lines[i])) !== null) {
         refs.push({
           target: match[1],
-          file: relative(process.cwd(), file),
+          file: relative(projectRoot, file),
           line: i + 1,
         });
       }
@@ -258,6 +258,6 @@ export async function scanCodeRefs(projectRoot: string): Promise<ScanResult> {
 
   // Fallback: walk files ourselves and scan with TS
   const files = await walkFiles(projectRoot);
-  const refs = await scanWithTs(files);
+  const refs = await scanWithTs(files, projectRoot);
   return { refs, files };
 }

@@ -218,7 +218,13 @@ export function formatSectionOutput(
   if (codeRefs.length > 0) {
     parts.push('', '## Referenced by code:', '');
     for (const ref of codeRefs) {
-      parts.push(`${s.dim('*')} ${s.cyan(ref.file)}${s.dim(`:${ref.line}`)}`);
+      const codeRelPath = relative(
+        process.cwd(),
+        join(ctx.projectRoot, ref.file),
+      );
+      parts.push(
+        `${s.dim('*')} ${s.cyan(codeRelPath)}${s.dim(`:${ref.line}`)}`,
+      );
       if (ref.snippet) {
         const snippetLines = ref.snippet.split('\n');
         for (const line of snippetLines) {
