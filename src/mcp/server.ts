@@ -88,7 +88,7 @@ export async function startMcpServer(): Promise<void> {
       scope: z
         .enum(['md', 'code', 'md+code'])
         .optional()
-        .default('md')
+        .default('md+code')
         .describe('Where to search: md, code, or md+code'),
     },
     async ({ query, scope }) =>

@@ -71,7 +71,7 @@ program
   .command('refs')
   .description('Find references to a section')
   .argument('<query>', 'section id to find references for')
-  .option('--scope <scope>', 'where to search: md, code, or md+code', 'md')
+  .option('--scope <scope>', 'where to search: md, code, or md+code', 'md+code')
   .action(async (query: string, opts: { scope: string }) => {
     const scope = opts.scope;
     if (scope !== 'md' && scope !== 'code' && scope !== 'md+code') {

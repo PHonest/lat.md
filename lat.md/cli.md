@@ -52,9 +52,9 @@ Usage: `lat refs <query> [--scope=md|code|md+code]`
 
 ### Scope
 
-- `md` (default) — search `lat.md` markdown files for wiki links targeting the query
+- `md` — search `lat.md` markdown files for wiki links targeting the query
 - `code` — scan source files for `@lat: [[...]]` comments matching the query
-- `md+code` — both
+- `md+code` (default) — both
 
 Core logic in [[src/cli/refs.ts#findRefs]] (returns structured result), used by both the CLI command and [[cli#mcp]] `lat_refs` tool.
 
