@@ -181,6 +181,8 @@ Sets up `copilot-instructions.md` and registers the MCP server for VS Code Copil
 
 All setup steps are idempotent — existing configuration is detected and skipped.
 
+`.gitignore` entries are only added if the target path is not already tracked in git (`git ls-files`); if tracked, the step prints a warning and skips to avoid a no-op ignore rule.
+
 Implementation: [[src/cli/init.ts]], interactive menu in [[src/cli/select-menu.ts]], version tracking in [[src/init-version.ts]]
 
 ## Configuration File

@@ -6,6 +6,7 @@ import {
   readFileSync,
 } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { execSync } from 'node:child_process';
 import { createInterface } from 'node:readline/promises';
 import chalk from 'chalk';
 import { findTemplatesDir } from './templates.js';
@@ -194,6 +195,29 @@ function ensureGitignored(root: string, entry: string): void {
     if (lines.includes(entry)) {
       console.log(chalk.green(`  ${entry}`) + ' already in .gitignore');
       return;
+    }
+  }
+
+  // Skip if the entry is already tracked in git — adding it to .gitignore
+  // would have no effect and confuse the user.
+  if (existsSync(gitDir)) {
+    try {
+      const result = execSync(`git ls-files "${entry}"`, {
+        cwd: root,
+        encoding: 'utf-8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
+      if (result.trim().length > 0) {
+        console.log(
+          chalk.yellow(`  ${entry}`) +
+            ' is already checked in to git — skipping .gitignore',
+        );
+        return;
+      }
+    } catch {
+      console.log(
+        chalk.yellow(`  Warning:`) + ' git ls-files failed — skipping check',
+      );
     }
   }
 
