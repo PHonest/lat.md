@@ -123,6 +123,7 @@ Supported targets:
 - `claude.md` — alias for `agents.md`
 - `cursor-rules.md` — generate Cursor rules for `.cursor/rules/lat.md`
 - `pi-extension.ts` — generate the Pi extension template (tools + lifecycle hooks)
+- `skill.md` — generate the Agent Skills spec `SKILL.md` for the `lat-md` skill (authoring guide for `lat.md/` files)
 
 Output is written to stdout so it can be redirected: `lat gen agents.md > AGENTS.md`.
 
@@ -154,6 +155,7 @@ Sets up `CLAUDE.md` and two agent hooks for the Claude Code coding agent.
 - Hooks synced in `.claude/settings.json` — on every run, all existing lat-owned hook entries are removed, then fresh entries are added for both events. Detection uses three heuristics: `/\blat\b/` in the command string, `hook claude ` substring (catches any install path), or command starting with the current binary path. Non-lat hooks are preserved. Both hooks call [[cli#hook]]:
   - `UserPromptSubmit` → `lat hook claude UserPromptSubmit` — injects lat.md workflow reminders, auto-resolves `[[refs]]` in the prompt
   - `Stop` → `lat hook claude Stop` — reminds the agent to update `lat.md/` before finishing
+- `.claude/skills/lat-md/SKILL.md` — skill spec generated from `templates/skill/SKILL.md`. Teaches the agent how to author and maintain `lat.md/` files. Claude Code discovers it automatically from `.claude/skills/`.
 - `.claude` directory added to `.gitignore` (settings contain local absolute paths in hook commands)
 - [[cli#mcp]] server registered in `.mcp.json` at the project root (added to `.gitignore` since it contains absolute paths)
 
@@ -163,7 +165,8 @@ Sets up a Pi extension that registers lat tools as native Pi tools and hooks int
 
 - `AGENTS.md` — shared instruction file (created in the shared step)
 - `.pi/extensions/lat.ts` — TypeScript extension generated from `templates/pi-extension.ts` with the full invocation command injected. `resolveLatBin()` in `init.ts` reconstructs exactly how the process was started: for compiled binaries it's just the binary path; for `.ts` source files run via tsx it captures `node <execArgv> <script>` so the same loader flags are replayed. Registers six tools (`lat_search`, `lat_section`, `lat_locate`, `lat_check`, `lat_expand`, `lat_refs`) that shell out to the `lat` CLI. Each tool provides a `renderCall` method so the Pi TUI displays the query/parameters inline in the tool call header (e.g. `lat search "query text"`). The `lat_search` and `lat_section` tools also provide a `renderResult` method that shows a collapsed preview (first 4 lines) by default and the full output when expanded via Ctrl+O (`expandTools` keybinding). Registers custom message renderers for `lat-reminder` and `lat-check` that show a collapsed one-liner by default and expand to full content on Ctrl+O. Hooks into `before_agent_start` (injects a visible search reminder via `customType` message with `display: true`) and `agent_end` (runs `lat check` + diff analysis, sends a visible follow-up message if something needs fixing).
-- `.pi` directory added to `.gitignore` (extension contains local absolute paths)
+- `.pi/skills/lat-md/SKILL.md` — skill spec generated from `templates/skill/SKILL.md`. Teaches the agent how to author and maintain `lat.md/` files (section structure, wiki links, code refs, test specs). Pi discovers it automatically from the `.pi/skills/` directory.
+- `.pi` directory added to `.gitignore` (extension and skills contain local paths)
 
 ### Cursor
 
@@ -171,6 +174,7 @@ Sets up `.cursor/rules` and registers the MCP server for Cursor.
 
 - `.cursor/rules/lat.md` — rules file generated from `templates/cursor-rules.md`, references MCP tools instead of CLI commands
 - [[cli#mcp]] server registered in `.cursor/mcp.json` (added to `.gitignore` since it contains absolute paths)
+- `.agents/skills/lat-md/SKILL.md` — skill spec for authoring `lat.md/` files, placed in the cross-agent standard skills directory
 
 ### VS Code Copilot
 
@@ -178,10 +182,12 @@ Sets up `copilot-instructions.md` and registers the MCP server for VS Code Copil
 
 - `.github/copilot-instructions.md` — static instructions file
 - [[cli#mcp]] server registered in `.vscode/mcp.json`
+- `.agents/skills/lat-md/SKILL.md` — skill spec for authoring `lat.md/` files, placed in the cross-agent standard skills directory
 
 ### Codex / OpenCode
 
-- Uses AGENTS.md only (no MCP support)
+- Uses AGENTS.md (no MCP support)
+- `.agents/skills/lat-md/SKILL.md` — skill spec for authoring `lat.md/` files, placed in the cross-agent standard skills directory
 
 All setup steps are idempotent — existing configuration is detected and skipped.
 

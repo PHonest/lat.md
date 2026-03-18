@@ -14,6 +14,7 @@ import {
   readAgentsTemplate,
   readCursorRulesTemplate,
   readPiExtensionTemplate,
+  readSkillTemplate,
 } from './gen.js';
 import {
   getLlmKey,
@@ -404,6 +405,35 @@ async function writeTemplateFile(
   return null;
 }
 
+// ── Shared skill setup ───────────────────────────────────────────────
+
+async function writeAgentsSkill(
+  root: string,
+  latDir: string,
+  hashes: Record<string, string>,
+  ask: (message: string) => Promise<boolean>,
+): Promise<void> {
+  console.log('');
+  console.log(
+    chalk.dim(
+      '  The lat-md skill teaches the agent how to write and maintain lat.md/ files.',
+    ),
+  );
+
+  const skillTemplate = readSkillTemplate();
+  const skillHash = await writeTemplateFile(
+    root,
+    latDir,
+    '.agents/skills/lat-md/SKILL.md',
+    skillTemplate,
+    'skill.md',
+    'Skill (.agents/skills/lat-md/SKILL.md)',
+    '  ',
+    ask,
+  );
+  if (skillHash) hashes['.agents/skills/lat-md/SKILL.md'] = skillHash;
+}
+
 // ── Per-agent setup ──────────────────────────────────────────────────
 
 async function setupAgentsMd(
@@ -462,6 +492,27 @@ async function setupClaudeCode(
   mkdirSync(claudeDir, { recursive: true });
   syncLatHooks(settingsPath, style);
   console.log(chalk.green('  Hooks') + ' synced (UserPromptSubmit + Stop)');
+
+  // .claude/skills/lat-md/SKILL.md — skill for authoring lat.md files
+  console.log('');
+  console.log(
+    chalk.dim(
+      '  The lat-md skill teaches the agent how to write and maintain lat.md/ files.',
+    ),
+  );
+
+  const skillTemplate = readSkillTemplate();
+  const skillHash = await writeTemplateFile(
+    root,
+    latDir,
+    '.claude/skills/lat-md/SKILL.md',
+    skillTemplate,
+    'skill.md',
+    'Skill (.claude/skills/lat-md/SKILL.md)',
+    '  ',
+    ask,
+  );
+  if (skillHash) hashes['.claude/skills/lat-md/SKILL.md'] = skillHash;
 
   // Ensure .claude is gitignored (settings contain local absolute paths)
   ensureGitignored(root, '.claude');
@@ -537,6 +588,9 @@ async function setupCursor(
   // Ensure .cursor/mcp.json is gitignored (it contains local absolute paths)
   ensureGitignored(root, '.cursor/mcp.json');
 
+  // .agents/skills/lat-md/SKILL.md — skill for authoring lat.md files
+  await writeAgentsSkill(root, latDir, hashes, ask);
+
   console.log('');
   console.log(
     chalk.yellow('  Note:') +
@@ -586,6 +640,9 @@ async function setupCopilot(
       chalk.green('  MCP server') + ' registered in .vscode/mcp.json',
     );
   }
+
+  // .agents/skills/lat-md/SKILL.md — skill for authoring lat.md files
+  await writeAgentsSkill(root, latDir, hashes, ask);
 }
 
 async function setupPi(
@@ -627,6 +684,27 @@ async function setupPi(
     ask,
   );
   if (hash) hashes['.pi/extensions/lat.ts'] = hash;
+
+  // .pi/skills/lat-md/SKILL.md — skill for authoring lat.md files
+  console.log('');
+  console.log(
+    chalk.dim(
+      '  The lat-md skill teaches the agent how to write and maintain lat.md/ files.',
+    ),
+  );
+
+  const skillTemplate = readSkillTemplate();
+  const skillHash = await writeTemplateFile(
+    root,
+    latDir,
+    '.pi/skills/lat-md/SKILL.md',
+    skillTemplate,
+    'skill.md',
+    'Skill (.pi/skills/lat-md/SKILL.md)',
+    '  ',
+    ask,
+  );
+  if (skillHash) hashes['.pi/skills/lat-md/SKILL.md'] = skillHash;
 
   // Ensure .pi is gitignored (extension contains local absolute paths)
   ensureGitignored(root, '.pi');
@@ -939,10 +1017,9 @@ export async function initCmd(targetDir?: string): Promise<void> {
 
     if (useCodex) {
       console.log('');
-      console.log(
-        chalk.bold('Codex / OpenCode') +
-          ' — uses AGENTS.md (already created). No additional setup needed.',
-      );
+      console.log(chalk.bold('Setting up Codex / OpenCode...'));
+      console.log(chalk.dim('  Uses AGENTS.md (already created).'));
+      await writeAgentsSkill(root, latDir, fileHashes, ask);
     }
 
     // Step 5: LLM key setup
