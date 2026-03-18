@@ -27,9 +27,7 @@ The result is a structured knowledge base that:
 npm install -g lat.md
 ```
 
-Or use directly with `npx lat.md@latest <command>`.
-
-After installing, run `lat init` in the repo you want to use lat in.
+Then run `lat init` in the repo you want to use lat in.
 
 ## How it works
 
@@ -50,13 +48,14 @@ my-project/
 ## CLI
 
 ```bash
-npx lat.md init                        # scaffold a lat.md/ directory
-npx lat.md check                       # validate all wiki links and code refs
-npx lat.md locate "OAuth Flow"         # find sections by name (exact, fuzzy)
-npx lat.md section "auth#OAuth Flow"   # show a section with its links and refs
-npx lat.md refs "auth#OAuth Flow"      # find what references a section
-npx lat.md search "how do we auth?"    # semantic search via embeddings
-npx lat.md expand "fix [[OAuth Flow]]" # expand [[refs]] in a prompt for agents
+lat init                        # scaffold a lat.md/ directory
+lat check                       # validate all wiki links and code refs
+lat locate "OAuth Flow"         # find sections by name (exact, fuzzy)
+lat section "auth#OAuth Flow"   # show a section with its links and refs
+lat refs "auth#OAuth Flow"      # find what references a section
+lat search "how do we auth?"    # semantic search via embeddings
+lat expand "fix [[OAuth Flow]]" # expand [[refs]] in a prompt for agents
+lat mcp                         # start MCP server for editor integration
 ```
 
 ## Configuration
