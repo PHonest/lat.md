@@ -124,8 +124,8 @@ export async function getSection(
                   'utf-8',
                 );
                 const srcLines = src.split('\n');
-                const start = Math.max(0, sym.startLine - 1 - 2);
-                const end = Math.min(srcLines.length, sym.startLine - 1 + 3);
+                const start = sym.startLine - 1;
+                const end = Math.min(srcLines.length, start + 5);
                 snippet = srcLines.slice(start, end).join('\n');
               } catch {
                 // file unreadable
