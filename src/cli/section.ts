@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { join, relative } from 'node:path';
+import { extname, join, relative } from 'node:path';
 import {
   loadAllSections,
   findSections,
@@ -12,6 +12,7 @@ import {
   type SectionMatch,
 } from '../lattice.js';
 import { scanCodeRefs } from '../code-refs.js';
+import { SOURCE_EXTENSIONS } from '../source-parser.js';
 import type { CmdContext, CmdResult } from '../context.js';
 import { formatSectionId, formatNavHints } from '../format.js';
 
@@ -21,11 +22,16 @@ export type CodeBackRef = {
   snippet: string;
 };
 
+export type SourceRef = {
+  target: string;
+};
+
 export type SectionFound = {
   kind: 'found';
   section: Section;
   content: string;
   outgoingRefs: { target: string; resolved: Section }[];
+  outgoingSourceRefs: SourceRef[];
   incomingRefs: SectionMatch[];
   codeRefs: CodeBackRef[];
 };
@@ -79,9 +85,22 @@ export async function getSection(
   const sectionId = section.id.toLowerCase();
 
   const outgoingRefs: { target: string; resolved: Section }[] = [];
+  const outgoingSourceRefs: SourceRef[] = [];
   const seen = new Set<string>();
   for (const ref of sectionRefs) {
     if (ref.fromSection.toLowerCase() !== sectionId) continue;
+    // Detect source code references by file extension
+    const hashIdx = ref.target.indexOf('#');
+    const filePart = hashIdx === -1 ? ref.target : ref.target.slice(0, hashIdx);
+    const ext = extname(filePart);
+    if (SOURCE_EXTENSIONS.has(ext)) {
+      const targetLower = ref.target.toLowerCase();
+      if (!seen.has(targetLower)) {
+        seen.add(targetLower);
+        outgoingSourceRefs.push({ target: ref.target });
+      }
+      continue;
+    }
     const { resolved } = resolveRef(ref.target, sectionIds, fileIndex);
     const resolvedLower = resolved.toLowerCase();
     if (seen.has(resolvedLower)) continue;
@@ -151,6 +170,7 @@ export async function getSection(
     section,
     content,
     outgoingRefs,
+    outgoingSourceRefs,
     incomingRefs,
     codeRefs,
   };
@@ -173,7 +193,14 @@ export function formatSectionOutput(
   result: SectionFound,
 ): string {
   const s = ctx.styler;
-  const { section, content, outgoingRefs, incomingRefs, codeRefs } = result;
+  const {
+    section,
+    content,
+    outgoingRefs,
+    outgoingSourceRefs,
+    incomingRefs,
+    codeRefs,
+  } = result;
   const relPath = relative(
     process.cwd(),
     join(ctx.projectRoot, section.filePath),
@@ -191,7 +218,7 @@ export function formatSectionOutput(
     quoted,
   ];
 
-  if (outgoingRefs.length > 0) {
+  if (outgoingRefs.length > 0 || outgoingSourceRefs.length > 0) {
     parts.push('', '## This section references:', '');
     for (const ref of outgoingRefs) {
       const body = ref.resolved.firstParagraph
@@ -200,6 +227,9 @@ export function formatSectionOutput(
       parts.push(
         `${s.dim('*')} [[${formatSectionId(ref.resolved.id, s)}]]${body}`,
       );
+    }
+    for (const ref of outgoingSourceRefs) {
+      parts.push(`${s.dim('*')} [[${s.cyan(ref.target)}]]`);
     }
   }
 

@@ -29,7 +29,7 @@ Accepts any valid section id (short-form, full-path, with or without `[[brackets
 Output:
 1. Section header with id and file location
 2. Section content blockquoted (`>`) from `startLine` through the end of the last descendant subsection
-3. **This section references** — all wiki link targets found within the section, with body descriptions
+3. **This section references** — all wiki link targets found within the section, including both lat.md section refs (with body descriptions) and source code refs
 4. **Referenced by** — other sections in `lat.md/` that contain wiki links pointing to this section
 5. **Referenced by code** — source files containing `@lat:` comments that reference this section, each shown with file path, line number, and a 5-line snippet centered on the reference
 6. **Navigation hints** — same footer as [[cli#search]], suggesting `lat section` and `lat search` as next steps
