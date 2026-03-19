@@ -224,32 +224,43 @@ function extractPySymbols(tree: Tree): SourceSymbol[] {
     const startLine = node.startPosition.row + 1;
     const endLine = node.endPosition.row + 1;
 
-    if (node.type === 'function_definition') {
-      const name = extractName(node);
+    // Unwrap decorated_definition to get the inner function/class
+    const inner =
+      node.type === 'decorated_definition'
+        ? node.childForFieldName('definition')
+        : node;
+    if (!inner) continue;
+
+    if (inner.type === 'function_definition') {
+      const name = extractName(inner);
       if (name) {
         symbols.push({
           name,
           kind: 'function',
           startLine,
           endLine,
-          signature: firstLine(node.text),
+          signature: firstLine(inner.text),
         });
       }
-    } else if (node.type === 'class_definition') {
-      const name = extractName(node);
+    } else if (inner.type === 'class_definition') {
+      const name = extractName(inner);
       if (name) {
         symbols.push({
           name,
           kind: 'class',
           startLine,
           endLine,
-          signature: firstLine(node.text),
+          signature: firstLine(inner.text),
         });
         // Extract methods
-        const body = node.childForFieldName('body');
+        const body = inner.childForFieldName('body');
         if (body) {
           for (let j = 0; j < body.namedChildCount; j++) {
-            const member = body.namedChild(j)!;
+            let member = body.namedChild(j)!;
+            // Unwrap decorated methods
+            if (member.type === 'decorated_definition') {
+              member = member.childForFieldName('definition') ?? member;
+            }
             if (member.type === 'function_definition') {
               const methodName = extractName(member);
               if (methodName) {
@@ -267,12 +278,12 @@ function extractPySymbols(tree: Tree): SourceSymbol[] {
         }
       }
     } else if (
-      node.type === 'expression_statement' &&
-      node.namedChildCount === 1 &&
-      node.namedChild(0)!.type === 'assignment'
+      inner.type === 'expression_statement' &&
+      inner.namedChildCount === 1 &&
+      inner.namedChild(0)!.type === 'assignment'
     ) {
       // Top-level assignment: FOO = ...
-      const assign = node.namedChild(0)!;
+      const assign = inner.namedChild(0)!;
       const left = assign.childForFieldName('left');
       if (left && left.type === 'identifier') {
         symbols.push({

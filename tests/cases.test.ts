@@ -365,16 +365,20 @@ describe('error-dangling-code-ref', () => {
 // --- python-code-ref ---
 
 describe('python-code-ref', () => {
-  it('scans @lat refs from Python # comments', async () => {
+  it('scans @lat refs from Python # comments including between decorators', async () => {
     const { refs } = await scanCodeRefs(caseDir('python-code-ref'));
-    expect(refs).toHaveLength(2);
+    expect(refs).toHaveLength(3);
 
     expect(refs[0].target).toBe('Specs#Feature A');
     expect(refs[0].file).toContain('app.py');
     expect(refs[0].line).toBe(1);
 
-    expect(refs[1].target).toBe('Specs#Nonexistent');
-    expect(refs[1].line).toBe(5);
+    expect(refs[1].target).toBe('Specs#Feature B');
+    expect(refs[1].file).toContain('app.py');
+    expect(refs[1].line).toBe(9);
+
+    expect(refs[2].target).toBe('Specs#Nonexistent');
+    expect(refs[2].line).toBe(13);
   });
 
   it('detects dangling @lat ref in Python file', async () => {
@@ -747,9 +751,11 @@ describe('source-ref-jsx-valid', () => {
 });
 
 describe('source-ref-py-valid', () => {
-  it('resolves Python function, class, method, and variable refs without errors', async () => {
-    // docs.md links: greet (function), Greeter (class),
-    // Greeter#greet (method), DEFAULT_NAME (variable)
+  it('resolves Python function, class, method, variable, and decorated symbol refs without errors', async () => {
+    // docs.md links: greet (function), decorated_greet (decorated function),
+    // Greeter (class), Greeter#greet (method), Greeter#decorated_method (decorated method),
+    // DecoratedGreeter (decorated class), DecoratedGreeter#wave (method on decorated class),
+    // DEFAULT_NAME (variable)
     const { errors } = await checkMd(latDir('source-ref-py-valid'));
     expect(errors).toHaveLength(0);
   });
@@ -1162,10 +1168,11 @@ describe('scanCodeRefs TS fallback (_LAT_DISABLE_RG)', () => {
   // @lat: [[tests/ts-fallback#scanCodeRefs finds refs without rg]]
   it('scanCodeRefs finds refs without rg', async () => {
     const { refs } = await scanCodeRefs(caseDir('python-code-ref'));
-    expect(refs).toHaveLength(2);
+    expect(refs).toHaveLength(3);
     expect(refs[0].target).toBe('Specs#Feature A');
     expect(refs[0].file).toContain('app.py');
-    expect(refs[1].target).toBe('Specs#Nonexistent');
+    expect(refs[1].target).toBe('Specs#Feature B');
+    expect(refs[2].target).toBe('Specs#Nonexistent');
   });
 
   // @lat: [[tests/ts-fallback#checkCodeRefs detects dangling ref without rg]]
