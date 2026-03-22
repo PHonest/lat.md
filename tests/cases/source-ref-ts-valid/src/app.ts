@@ -9,3 +9,13 @@ export class Greeter {
 }
 
 export const DEFAULT_NAME = 'World';
+
+export type Config = {
+  name: string;
+  verbose: boolean;
+};
+
+export interface Logger {
+  log(msg: string): void;
+  warn(msg: string): void;
+}

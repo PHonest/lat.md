@@ -26,6 +26,7 @@ export type SourceRef = {
   target: string;
   file: string;
   line: number;
+  endLine: number;
   snippet: string;
 };
 
@@ -102,6 +103,7 @@ export async function getSection(
         seen.add(targetLower);
         const symbolPart = hashIdx === -1 ? '' : ref.target.slice(hashIdx + 1);
         let line = 0;
+        let endLine = 0;
         let snippet = '';
         if (symbolPart) {
           const { found, symbols } = await resolveSourceSymbol(
@@ -118,6 +120,7 @@ export async function getSection(
             );
             if (sym) {
               line = sym.startLine;
+              endLine = sym.endLine;
               try {
                 const src = await readFile(
                   join(ctx.projectRoot, filePart),
@@ -137,6 +140,7 @@ export async function getSection(
           target: ref.target,
           file: filePart,
           line,
+          endLine,
           snippet,
         });
       }
@@ -271,7 +275,9 @@ export function formatSectionOutput(
     }
     for (const ref of outgoingSourceRefs) {
       const loc = ref.line
-        ? `${s.dim(` (${ref.file}:${ref.line})`)}`
+        ? ref.endLine && ref.endLine !== ref.line
+          ? `${s.dim(` (${ref.file}:${ref.line}-${ref.endLine})`)}`
+          : `${s.dim(` (${ref.file}:${ref.line})`)}`
         : `${s.dim(` (${ref.file})`)}`;
       parts.push(`${s.dim('*')} [[${s.cyan(ref.target)}]]${loc}`);
       if (ref.snippet) {

@@ -1075,6 +1075,108 @@ describe('getSection', () => {
     expect(output).toContain('lat.md/links#Links');
   });
 
+  // @lat: [[tests/section#Source refs include line range]]
+  it('TS: outgoingSourceRefs include endLine for function, class, type, interface', async () => {
+    const ctx = testCtx('source-ref-ts-valid');
+    const result = await getSection(ctx, 'lat.md/docs#Docs');
+    expect(result.kind).toBe('found');
+    if (result.kind !== 'found') return;
+    const ref = (t: string) => result.outgoingSourceRefs.find((r) => r.target === t);
+    // function spans lines 1-3
+    expect(ref('src/app.ts#greet')).toMatchObject({ line: 1, endLine: 3 });
+    // class spans lines 5-9
+    expect(ref('src/app.ts#Greeter')).toMatchObject({ line: 5, endLine: 9 });
+    // const is single-line
+    expect(ref('src/app.ts#DEFAULT_NAME')).toMatchObject({ line: 11, endLine: 11 });
+    // type alias spans lines 13-16
+    expect(ref('src/app.ts#Config')).toMatchObject({ line: 13, endLine: 16 });
+    // interface spans lines 18-21
+    expect(ref('src/app.ts#Logger')).toMatchObject({ line: 18, endLine: 21 });
+  });
+
+  it('Python: outgoingSourceRefs include endLine for function, class, decorated function', async () => {
+    const ctx = testCtx('source-ref-py-valid');
+    const result = await getSection(ctx, 'lat.md/docs#Docs');
+    expect(result.kind).toBe('found');
+    if (result.kind !== 'found') return;
+    const ref = (t: string) => result.outgoingSourceRefs.find((r) => r.target === t);
+    // plain function: lines 1-2
+    expect(ref('src/app.py#greet')).toMatchObject({ line: 1, endLine: 2 });
+    // class: lines 11-17
+    expect(ref('src/app.py#Greeter')).toMatchObject({ line: 11, endLine: 17 });
+    // decorated function: lines 7-9 (includes decorator)
+    expect(ref('src/app.py#decorated_greet')).toMatchObject({ line: 7, endLine: 9 });
+    // decorated class: lines 19-22 (includes decorator)
+    expect(ref('src/app.py#DecoratedGreeter')).toMatchObject({ line: 19, endLine: 22 });
+  });
+
+  it('C: outgoingSourceRefs include endLine for struct, function, macro', async () => {
+    const ctx = testCtx('source-ref-c-valid');
+    const result = await getSection(ctx, 'lat.md/docs#Docs');
+    expect(result.kind).toBe('found');
+    if (result.kind !== 'found') return;
+    const ref = (t: string) => result.outgoingSourceRefs.find((r) => r.target === t);
+    // struct in header: lines 4-6
+    expect(ref('src/app.h#Greeter')).toMatchObject({ line: 4, endLine: 6 });
+    // enum: line 8
+    expect(ref('src/app.h#Color')).toMatchObject({ line: 8, endLine: 8 });
+    // function in .c: lines 4-6
+    expect(ref('src/app.c#greet')).toMatchObject({ line: 4, endLine: 6 });
+    // multi-line function: lines 15-17
+    expect(ref('src/app.c#make_greeting')).toMatchObject({ line: 15, endLine: 17 });
+  });
+
+  it('Rust: outgoingSourceRefs include endLine for struct, impl method, trait, enum', async () => {
+    const ctx = testCtx('source-ref-rs-valid');
+    const result = await getSection(ctx, 'lat.md/docs#Docs');
+    expect(result.kind).toBe('found');
+    if (result.kind !== 'found') return;
+    const ref = (t: string) => result.outgoingSourceRefs.find((r) => r.target === t);
+    // function: lines 1-3
+    expect(ref('src/app.rs#greet')).toMatchObject({ line: 1, endLine: 3 });
+    // struct: lines 5-7
+    expect(ref('src/app.rs#Greeter')).toMatchObject({ line: 5, endLine: 7 });
+    // trait: lines 21-23
+    expect(ref('src/app.rs#Greeting')).toMatchObject({ line: 21, endLine: 23 });
+    // enum: lines 27-31
+    expect(ref('src/app.rs#Color')).toMatchObject({ line: 27, endLine: 31 });
+  });
+
+  it('Go: outgoingSourceRefs include endLine for struct, function, interface', async () => {
+    const ctx = testCtx('source-ref-go-valid');
+    const result = await getSection(ctx, 'lat.md/docs#Docs');
+    expect(result.kind).toBe('found');
+    if (result.kind !== 'found') return;
+    const ref = (t: string) => result.outgoingSourceRefs.find((r) => r.target === t);
+    // function: lines 5-7
+    expect(ref('src/app.go#Greet')).toMatchObject({ line: 5, endLine: 7 });
+    // struct: lines 9-11
+    expect(ref('src/app.go#Greeter')).toMatchObject({ line: 9, endLine: 11 });
+    // function: lines 17-19
+    expect(ref('src/app.go#NewGreeter')).toMatchObject({ line: 17, endLine: 19 });
+    // interface: lines 21-23
+    expect(ref('src/app.go#Greeting')).toMatchObject({ line: 21, endLine: 23 });
+  });
+
+  // @lat: [[tests/section#formatSectionOutput renders source ref line ranges]]
+  it('formatSectionOutput renders source ref line ranges', async () => {
+    const ctx = testCtx('source-ref-ts-valid');
+    const result = await getSection(ctx, 'lat.md/docs#Docs');
+    expect(result.kind).toBe('found');
+    if (result.kind !== 'found') return;
+    const output = stripAnsi(formatSectionOutput(ctx, result));
+    // Multi-line function: should show range
+    expect(output).toContain('src/app.ts:1-3');
+    // Multi-line class: should show range
+    expect(output).toContain('src/app.ts:5-9');
+    // Single-line const: should show just the line
+    expect(output).toMatch(/src\/app\.ts:11\b/);
+    // Type alias: should show range
+    expect(output).toContain('src/app.ts:13-16');
+    // Interface: should show range
+    expect(output).toContain('src/app.ts:18-21');
+  });
+
   // @lat: [[tests/section#formatSectionOutput includes all parts]]
   it('formatSectionOutput includes content and refs', async () => {
     const ctx = testCtx('basic-project');

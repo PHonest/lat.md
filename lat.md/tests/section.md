@@ -35,6 +35,14 @@ A section that is referenced by wiki links from other sections returns those ref
 
 Verifies that `formatSectionOutput` correctly renders the "Referenced by" block when a section has incoming references.
 
+## Source refs include line range
+
+`getSection` populates `outgoingSourceRefs` with `line` and `endLine` from the resolved symbol, so callers can display the full extent of a function or class.
+
+## formatSectionOutput renders source ref line ranges
+
+`formatSectionOutput` renders source code references with `file:startLine-endLine` when the symbol spans multiple lines, showing the full extent of the definition.
+
 ## formatSectionOutput includes all parts
 
 `formatSectionOutput` produces styled output containing section id, location, raw content, "This section references" with outgoing refs, "Referenced by" with incoming refs, and "Referenced by code" with `@lat:` back-references.
