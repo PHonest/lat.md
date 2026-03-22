@@ -696,19 +696,36 @@ export async function parseSourceSymbols(
   const tree = p.parse(content);
   if (!tree) return [];
 
-  if (ext === '.py') {
-    return extractPySymbols(tree);
+  try {
+    if (ext === '.py') {
+      return extractPySymbols(tree);
+    }
+    if (ext === '.rs') {
+      return extractRustSymbols(tree);
+    }
+    if (ext === '.go') {
+      return extractGoSymbols(tree);
+    }
+    if (ext === '.c' || ext === '.h') {
+      return extractCSymbols(tree);
+    }
+    return extractTsSymbols(tree);
+  } finally {
+    tree.delete();
   }
-  if (ext === '.rs') {
-    return extractRustSymbols(tree);
-  }
-  if (ext === '.go') {
-    return extractGoSymbols(tree);
-  }
-  if (ext === '.c' || ext === '.h') {
-    return extractCSymbols(tree);
-  }
-  return extractTsSymbols(tree);
+}
+
+// Per-invocation cache for parsed source symbols, keyed by absolute file path.
+// Prevents re-parsing the same file when multiple wiki links reference it
+// (e.g. 20+ links to quickjs.c would otherwise parse a 60K-line file 20 times).
+const symbolCache = new Map<
+  string,
+  { symbols: SourceSymbol[]; error?: string }
+>();
+
+/** Clear the symbol cache. Call between top-level operations. */
+export function clearSymbolCache(): void {
+  symbolCache.clear();
 }
 
 /**
@@ -721,23 +738,35 @@ export async function resolveSourceSymbol(
   projectRoot: string,
 ): Promise<{ found: boolean; symbols: SourceSymbol[]; error?: string }> {
   const absPath = join(projectRoot, filePath);
-  let content: string;
-  try {
-    content = readFileSync(absPath, 'utf-8');
-  } catch {
-    return { found: false, symbols: [] };
+
+  let cached = symbolCache.get(absPath);
+  if (!cached) {
+    let content: string;
+    try {
+      content = readFileSync(absPath, 'utf-8');
+    } catch {
+      cached = { symbols: [] };
+      symbolCache.set(absPath, cached);
+      return { found: false, symbols: [] };
+    }
+
+    try {
+      const symbols = await parseSourceSymbols(filePath, content);
+      cached = { symbols };
+    } catch (err) {
+      cached = {
+        symbols: [],
+        error: `failed to parse "${filePath}": ${err instanceof Error ? err.message : String(err)}`,
+      };
+    }
+    symbolCache.set(absPath, cached);
   }
 
-  let symbols: SourceSymbol[];
-  try {
-    symbols = await parseSourceSymbols(filePath, content);
-  } catch (err) {
-    return {
-      found: false,
-      symbols: [],
-      error: `failed to parse "${filePath}": ${err instanceof Error ? err.message : String(err)}`,
-    };
+  if (cached.error) {
+    return { found: false, symbols: cached.symbols, error: cached.error };
   }
+
+  const { symbols } = cached;
   const parts = symbolPath.split('#');
 
   if (parts.length === 1) {

@@ -13,7 +13,7 @@ import {
   type Section,
 } from '../lattice.js';
 import { scanCodeRefs } from '../code-refs.js';
-import { SOURCE_EXTENSIONS } from '../source-parser.js';
+import { SOURCE_EXTENSIONS, clearSymbolCache } from '../source-parser.js';
 import { walkEntries } from '../walk.js';
 import type { CmdContext, CmdResult, Styler } from '../context.js';
 import { INIT_VERSION, readInitVersion } from '../init-version.js';
@@ -137,6 +137,7 @@ async function tryResolveSourceRef(
 }
 
 export async function checkMd(latticeDir: string): Promise<CheckResult> {
+  clearSymbolCache();
   const projectRoot = dirname(latticeDir);
   const files = await listLatticeFiles(latticeDir);
   const allSections = await loadAllSections(latticeDir);
