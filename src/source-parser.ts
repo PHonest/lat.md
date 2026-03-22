@@ -586,8 +586,13 @@ function extractCSymbols(tree: Tree): SourceSymbol[] {
 }
 
 /**
- * Walk C AST nodes, collecting symbols. Recurses into preproc_ifdef /
- * preproc_ifndef blocks so header include guards don't hide declarations.
+ * Walk C AST nodes, collecting symbols. Recurses into preprocessor
+ * conditional blocks (ifdef/ifndef/if), linkage specifications
+ * (extern "C" { ... }), and declaration lists so that include guards
+ * and conditional compilation don't hide declarations.
+ *
+ * For #if/#ifdef/#ifndef, only the "then" branch is traversed —
+ * preproc_else and preproc_elif children are skipped.
  */
 function collectCNodes(parent: SyntaxNode, symbols: SourceSymbol[]): void {
   for (let i = 0; i < parent.childCount; i++) {
@@ -630,7 +635,12 @@ function collectCNodes(parent: SyntaxNode, symbols: SourceSymbol[]): void {
         });
       }
     } else if (node.type === 'type_definition') {
-      const declarator = node.childForFieldName('declarator');
+      let declarator = node.childForFieldName('declarator');
+      // Unwrap pointer_declarator for pointer typedefs
+      // e.g. `typedef struct __JSValue *JSValue;`
+      while (declarator?.type === 'pointer_declarator') {
+        declarator = declarator.childForFieldName('declarator') ?? null;
+      }
       const name =
         declarator?.type === 'type_identifier' ? declarator.text : null;
       if (name) {
@@ -644,15 +654,28 @@ function collectCNodes(parent: SyntaxNode, symbols: SourceSymbol[]): void {
       }
     } else if (node.type === 'declaration') {
       const declarator = node.childForFieldName('declarator');
-      const name = declarator ? cVarName(declarator) : null;
-      if (name) {
+      // Try as function declaration first (e.g. `void greet(const char *name);`
+      // in headers), then fall back to variable.
+      const funcName = declarator ? cFuncName(declarator) : null;
+      if (funcName) {
         symbols.push({
-          name,
-          kind: 'variable',
+          name: funcName,
+          kind: 'function',
           startLine,
           endLine,
           signature: firstLine(node.text),
         });
+      } else {
+        const name = declarator ? cVarName(declarator) : null;
+        if (name) {
+          symbols.push({
+            name,
+            kind: 'variable',
+            startLine,
+            endLine,
+            signature: firstLine(node.text),
+          });
+        }
       }
     } else if (
       node.type === 'preproc_def' ||
@@ -670,10 +693,21 @@ function collectCNodes(parent: SyntaxNode, symbols: SourceSymbol[]): void {
       }
     } else if (
       node.type === 'preproc_ifdef' ||
-      node.type === 'preproc_ifndef'
+      node.type === 'preproc_ifndef' ||
+      node.type === 'preproc_if'
     ) {
-      // Recurse into include guard / conditional blocks
+      // Recurse into conditional blocks (then-branch only).
+      // preproc_else / preproc_elif children are skipped.
       collectCNodes(node, symbols);
+    } else if (
+      node.type === 'linkage_specification' ||
+      node.type === 'declaration_list'
+    ) {
+      // extern "C" { ... } wraps declarations in linkage_specification
+      // containing a declaration_list — recurse through both.
+      collectCNodes(node, symbols);
+    } else if (node.type === 'preproc_else' || node.type === 'preproc_elif') {
+      // Skip else/elif branches of preprocessor conditionals.
     }
   }
 }

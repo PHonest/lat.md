@@ -19,3 +19,9 @@ Double-pointer-returning: [[src/app.c#split_lines]].
 Array variable: [[src/app.c#version_string]].
 
 Function-like macro: [[src/app.h#CLAMP]].
+
+Pointer typedef: [[src/app.h#AppCtx]].
+
+Extern C function: [[src/app.h#greet]].
+
+Preproc-if function: [[src/app.h#extra_func]].
