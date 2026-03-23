@@ -172,7 +172,7 @@ export default function Home() {
             }}
           >
             {[
-              { v: '0.11', text: <><Cmd>lat init</Cmd> supports Codex, OpenCode, and Cursor stop hook; C enum value and struct field linking including anonymous unions</> },
+              { v: '0.11', text: <><Cmd>lat init</Cmd> supports Codex, OpenCode, and Cursor stop hook</> },
               { v: '0.10', text: <><Cmd>lat section</Cmd> and <Cmd>lat refs</Cmd> show source code snippets; ripgrep-powered code scanning</> },
               { v: '0.9', text: <><Cmd>lat init</Cmd> creates a lat skill for supported agents</> },
               { v: '0.8', text: <>Pi coding agent integration; interactive arrow-key menus in <Cmd>lat init</Cmd></> },
