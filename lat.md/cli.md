@@ -324,13 +324,40 @@ Provider is auto-detected from the resolved key prefix:
 - `sk-ant-...` — Anthropic (not supported, errors with guidance)
 - `REPLAY_LAT_LLM_KEY::<url>` — test-only replay server for offline testing
 
-Implementation: [[src/search/provider.ts]], [[src/config.ts]]
+#### Custom OpenAI-compatible endpoints
+
+Setting `LAT_EMBEDDING_BASE_URL` routes embedding calls to any OpenAI-compatible `/embeddings` service (litellm, LiteLLM Proxy, Ollama, LocalAI, TGI, internal gateways) with the key passed through as `Authorization: Bearer <key>`.
+
+When this variable is set, prefix-based key detection is bypassed — cliniva-style opaque tokens work unchanged.
+
+- `LAT_EMBEDDING_BASE_URL` — base URL ending at `/v1` (no trailing `/embeddings`), e.g. `https://llm.internal/v1`. Trailing slashes are stripped.
+- `LAT_EMBEDDING_MODEL` — model id sent in the request body. Defaults to `text-embedding-3-small`.
+- `LAT_EMBEDDING_DIMENSIONS` — vector dimensions. Defaults to `1536`. Must match the deployed model's output size; mismatch will surface as shape errors on insert.
+
+The DB schema bakes dimensions in on first index ([[src/search/db.ts#ensureSchema]]). Switching models with different dimensions afterwards requires deleting `lat.md/.cache/vectors.db` and running `lat search --reindex`. The `REPLAY_LAT_LLM_KEY::` scheme still takes precedence over `LAT_EMBEDDING_BASE_URL` so the test suite is unaffected.
+
+Implementation: [[src/search/provider.ts#detectProvider]], [[src/config.ts#getLlmKey]]
 
 ### Embeddings
 
-Direct `fetch()` calls to the provider's OpenAI-compatible `/v1/embeddings` endpoint. No LangChain or other framework — keeps the dependency tree minimal. Batches up to 2048 texts per request.
+Direct `fetch()` calls to the provider's OpenAI-compatible `/v1/embeddings` endpoint. No LangChain or other framework — keeps the dependency tree minimal. Batches up to 2048 texts per request by default; override with `LAT_EMBEDDING_BATCH_SIZE`.
 
-Implementation: [[src/search/embeddings.ts]]
+The request body always includes `encoding_format: "float"`. Strict validators (notably vLLM behind some litellm gateways) reject requests that omit this field because upstream proxies may inject `encoding_format: null`, which fails the enum check. Sending `"float"` explicitly matches the OpenAI default and satisfies those validators. Error bodies are included up to 2000 characters so upstream validation messages remain readable.
+
+Self-hosted embedding servers (vLLM, TGI, LocalAI) often cap response size or time. A batch of 2048 inputs against a 4096-dim model produces ~160 MB of JSON and commonly trips proxy limits, surfacing as `UND_ERR_SOCKET: other side closed` mid-response. When that specific socket error is detected, the thrown message points the user at `LAT_EMBEDDING_BATCH_SIZE` with a concrete suggestion (start at 64). The variable accepts any positive integer and is validated at call time.
+
+Batch completion events are reported via an optional `EmbedProgress.onBatch(done, total)` callback so callers can render progress without knowing about embeddings internals. The CLI wires this to a stderr progress bar (see [[cli#search#Progress Reporting]]).
+
+Implementation: [[src/search/embeddings.ts#embed]]
+
+### Progress Reporting
+
+Indexing emits two kinds of progress events so the CLI can render feedback without coupling the search core to a specific UI.
+
+- `beforeIndex(isEmpty)` / `afterIndex(stats, isEmpty)` — bracket the full run, used for the "Re-indexing... done" banner
+- `onEmbedBatch(done, total)` — fires after each embedding HTTP round-trip
+
+`cliProgress` in [[src/cli/search.ts]] renders a 24-wide stderr progress bar using `█`/`░` blocks and ANSI erase (`\r\x1b[K`) when `process.stderr.isTTY` is true. In non-TTY contexts (pipes, hook invocations, MCP stdio), the bar is skipped and only a final count is written so logs stay clean. The bar is torn down in `afterIndex` so the final "done" line always starts at column 0.
 
 ### Storage
 

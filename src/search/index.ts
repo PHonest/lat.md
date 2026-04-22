@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import type { Client } from '@libsql/client';
 import { loadAllSections, flattenSections, type Section } from '../lattice.js';
-import { embed } from './embeddings.js';
+import { embed, type EmbedProgress } from './embeddings.js';
 import type { EmbeddingProvider } from './provider.js';
 
 function hashContent(text: string): string {
@@ -32,6 +32,7 @@ export async function indexSections(
   db: Client,
   provider: EmbeddingProvider,
   key: string,
+  progress?: EmbedProgress,
 ): Promise<IndexStats> {
   const projectRoot = dirname(latDir);
   const allSections = await loadAllSections(latDir);
@@ -72,7 +73,7 @@ export async function indexSections(
   // Embed new/changed sections
   if (toEmbed.length > 0) {
     const texts = toEmbed.map((e) => e.content);
-    const vectors = await embed(texts, provider, key);
+    const vectors = await embed(texts, provider, key, progress);
     const now = Date.now();
 
     for (let i = 0; i < toEmbed.length; i++) {

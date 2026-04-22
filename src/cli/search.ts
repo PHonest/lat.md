@@ -2,6 +2,7 @@ import type { CmdContext, CmdResult, Styler } from '../context.js';
 import { openDb, ensureSchema, closeDb } from '../search/db.js';
 import { detectProvider } from '../search/provider.js';
 import { indexSections, type IndexStats } from '../search/index.js';
+import type { EmbedProgress } from '../search/embeddings.js';
 import { searchSections } from '../search/search.js';
 import {
   loadAllSections,
@@ -18,6 +19,8 @@ export type SearchResult = {
 export type IndexProgress = {
   /** Called before indexing starts. `isEmpty` is true on first run. */
   beforeIndex?: (isEmpty: boolean) => void;
+  /** Called after each batch of embeddings completes. */
+  onEmbedBatch?: (done: number, total: number) => void;
   /** Called after indexing completes with stats. */
   afterIndex?: (stats: IndexStats, isEmpty: boolean) => void;
 };
@@ -41,7 +44,10 @@ async function withDb<T>(
     const isEmpty = (countResult.rows[0].n as number) === 0;
 
     progress?.beforeIndex?.(isEmpty);
-    const stats = await indexSections(latDir, db, provider, key);
+    const embedProgress: EmbedProgress = {
+      onBatch: (done, total) => progress?.onEmbedBatch?.(done, total),
+    };
+    const stats = await indexSections(latDir, db, provider, key, embedProgress);
     progress?.afterIndex?.(stats, isEmpty);
 
     return await fn(db, provider);
@@ -91,7 +97,26 @@ export async function runIndex(
   await withDb(latDir, key, progress, async () => {});
 }
 
+function renderBar(done: number, total: number, width = 24): string {
+  if (total <= 0) return '';
+  const ratio = Math.max(0, Math.min(1, done / total));
+  const filled = Math.round(ratio * width);
+  const bar = '█'.repeat(filled) + '░'.repeat(width - filled);
+  const pct = Math.round(ratio * 100);
+  return `[${bar}] ${done}/${total} (${pct}%)`;
+}
+
 export function cliProgress(reindex: boolean, s: Styler): IndexProgress {
+  const isTty = Boolean(process.stderr.isTTY);
+  let barActive = false;
+
+  const clearBar = () => {
+    if (barActive && isTty) {
+      process.stderr.write('\r\x1b[K');
+      barActive = false;
+    }
+  };
+
   return {
     beforeIndex(isEmpty) {
       if (isEmpty || reindex) {
@@ -99,7 +124,19 @@ export function cliProgress(reindex: boolean, s: Styler): IndexProgress {
         process.stderr.write(s.dim(`${label}...`));
       }
     },
+    onEmbedBatch(done, total) {
+      if (!(reindex || barActive) && done < total) {
+        process.stderr.write(s.dim(' embedding...'));
+      }
+      if (isTty) {
+        process.stderr.write('\r\x1b[K' + s.dim(renderBar(done, total)));
+        barActive = true;
+      } else if (done === total) {
+        process.stderr.write(s.dim(` ${done}/${total}`));
+      }
+    },
     afterIndex(stats, isEmpty) {
+      clearBar();
       if (isEmpty || reindex) {
         process.stderr.write(
           s.dim(

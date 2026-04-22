@@ -10,6 +10,22 @@ Tests in `tests/search.test.ts`.
 
 Unit tests (always run). Verify `detectProvider` correctly identifies OpenAI (`sk-`), Vercel (`vck_`), rejects Anthropic (`sk-ant-`) with a helpful message, and rejects unknown prefixes.
 
+## Custom Endpoint Provider Detection
+
+Unit tests (always run). Verify that `LAT_EMBEDDING_BASE_URL` routes opaque keys to a custom OpenAI-compatible endpoint.
+
+The tests also cover `LAT_EMBEDDING_MODEL` and `LAT_EMBEDDING_DIMENSIONS` overrides, rejection of invalid dimensions, and that replay keys still win over the env var (so the RAG replay tests remain deterministic).
+
+## Embed Batching and Progress
+
+Unit tests with a stubbed `globalThis.fetch` that exercise the `embed()` batching loop.
+
+Three cases:
+
+1. `LAT_EMBEDDING_BATCH_SIZE=3` against seven inputs — verifies batch sizes `[3, 3, 1]` and that the `onBatch(done, total)` callback fires with cumulative counts `(3,7) (6,7) (7,7)`.
+2. Simulated `UND_ERR_SOCKET` from the fetch client — verifies the rethrown error mentions `LAT_EMBEDDING_BATCH_SIZE` so the user knows how to recover.
+3. `LAT_EMBEDDING_BATCH_SIZE=-1` — verifies non-positive-integer values are rejected early.
+
 ## RAG Replay Tests
 
 Functional tests that exercise the full RAG pipeline using a replay server instead of a real embedding API.
